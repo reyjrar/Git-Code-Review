@@ -1,0 +1,19 @@
+# NAME
+
+Git::Code::Review - Tools for performing code review using Git as the backend
+
+# VERSION
+
+version 0.1
+
+# AUTHOR
+
+Brad Lhotsky <brad@divisionbyzero.net>
+
+# COPYRIGHT AND LICENSE
+
+This software is Copyright (c) 2014 by Brad Lhotsky.
+
+This is free software, licensed under:
+
+    The (three-clause) BSD License
