@@ -1,0 +1,8 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Git::Code::Review;
+
+print "Successful!\n";
