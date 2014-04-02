@@ -1,6 +1,5 @@
 # ABSTRACT: Perform commit selection
 package Git::Code::Review::Command::select;
-
 use strict;
 use warnings;
 

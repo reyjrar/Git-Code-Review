@@ -1,6 +1,5 @@
 # ABSTRACT: Initialization hooks for git-code-review commands
 package Git::Code::Review::Command::init;
-
 use strict;
 use warnings;
 
