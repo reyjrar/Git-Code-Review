@@ -63,7 +63,7 @@ my %CFG = (
 );
 my %PATHS   = (
     audit  => $AUDITDIR,
-    source => File::Spec->catdir($AUDITDIR,'.code-review','source'),
+    source => File::Spec->catdir($AUDITDIR,'source'),
 );
 my %ORIGINS = ();
 my %REPOS   = ();
@@ -110,7 +110,7 @@ sub gcr_repo {
     eval {
         $repo = Git::Repository->new( work_tree => $PATHS{$type} );
     };
-    return unless defined $repo;
+    die "invalid repository/path : $type = $PATHS{$type}" unless defined $repo;
     return $REPOS{$type} = $repo;
 }
 
@@ -165,20 +165,22 @@ Reset the audit directory to origin:master, stash weirdness.  Most operations ca
 
 =cut
 sub gcr_reset {
-    my $audit = gcr_repo();
+    my ($type) = @_;
+    $type ||= 'audit';
+    my $repo = gcr_repo($type);
     # Stash any local changes, and pull master
     output("+ Reseting to origin:master, any changes will be stashed.");
-    my $origin = gcr_origin('audit');
+    my $origin = gcr_origin($type);
     if(defined $origin) {
         verbose("= Found origin, checking working tree status.");
-        my @dirty = $audit->run(qw{status -s});
+        my @dirty = $repo->run(qw{status -s});
         if( @dirty ) {
             output({color=>'yellow'},"! Audit working tree is dirty, stashing files");
-            $audit->run(qw{stash -u});
+            $repo->run($type eq 'audit' ? qw{stash -u} : qw(reset --hard));
         }
         verbose({color=>'cyan'},"= Swithcing to master branch.");
         eval {
-            $audit->run(qw(checkout -b master));
+            $repo->run(qw(checkout -b master));
         };
         if( my $err = $@ ) {
             if( $err !~ /A branch named 'master'/ ) {
@@ -189,7 +191,7 @@ sub gcr_reset {
         }
         verbose({color=>'cyan'},"+ Initiating pull.");
         local *STDERR = *STDOUT;
-        my @output = $audit->run(qw{pull origin master});
+        my @output = $repo->run(qw{pull origin master});
         debug({color=>'magenta'}, @output);
     }
     else {

@@ -1,14 +1,23 @@
 # ABSTRACT: Initialization hooks for git-code-review commands
 package Git::Code::Review::Command::init;
 
+use strict;
+use warnings;
+
 use CLI::Helpers qw(:all);
 use Git::Code::Review -command;
 use Git::Code::Review::Utilities qw(:all);
-use URI;
 use YAML;
 
 my %CFG = gcr_config();
 my $AUDITDIR = gcr_dir();
+
+sub opt_spec {
+    return (
+        ['repo|r=s',   "Source repository for the audit", {} ],
+        ['branch|b=s', "Branch in the repo to track",     { default => 'master' } ],
+    );
+}
 
 sub description {
     my $DESC = <<"    EOH";
@@ -34,32 +43,27 @@ sub execute {
     }
 
     # Grab the URI
-    my $uri;
-    my $user_string = prompt "Enter the source repository:", validate => {
-        "not a valid URI" => sub {
-            $uri = URI->new($_);
-            if(!defined $uri->scheme) {
-                return -d $uri->as_string;
-            }
-            return 1;
-        },
-    };
+    my $repo = exists $opt->{repo} ? $opt->{repo}
+            : prompt "Enter the source repository:", validate => { "need more than 3 characters" => sub { length $_ > 3 } };
+    my $branch = exists $opt->{repo} ? $opt->{branch}
+            : prompt "Branch to track (default=master) :", validate => { "need more than 3 characters" => sub { length $_ > 3 } };
 
     # Initialize the sub module
     my $audit = gcr_repo();
-    my $cmd;
+    my $sub;
     my @out;
     {
         local *STDERR = *STDOUT;
-        $cmd = $audit->command(
-                qw(submodule add --name source),
-                $uri->as_string,
+        $sub = $audit->command(
+                qw(submodule add --name source -b),
+                $branch,
+                $repo,
                 'source'
         );
-        debug({color=>'yellow'},  "CMD=" . join(' ', $cmd->cmdline));
-        @out = $cmd->final_output();
+        debug({color=>'yellow'},  "CMD=" . join(' ', $sub->cmdline));
+        @out = $sub->final_output();
     }
-    if($cmd->exit != 0) {
+    if($sub->exit != 0) {
         output({stderr=>1,color=>'red'},"Submodule init failed, please try again");
         output({stderr=>1,color=>'yellow'}, map { "--| $_" } @out);
         gcr_reset();
@@ -80,10 +84,11 @@ sub execute {
     }
 
     my %details = (
-        state => 'init',
-        reviewer => $CFG{user},
-        source_repo => $url,
-        audit_repo => gcr_origin('audit'),
+        state       => 'init',
+        reviewer    => $CFG{user},
+        source_repo => $repo,
+        branch      => $branch,
+        audit_repo  => gcr_origin('audit'),
     );
     $audit->run(qw(commit -m), join("\n","Initializing source repository.",Dump(\%details)));
     gcr_push();
