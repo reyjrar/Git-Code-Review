@@ -2,9 +2,5 @@
 # PODNAME: git-code-review
 # ABSTRACT: Dispatches commands to the appropriate places
 
-use strict;
-use warnings;
-
 use Git::Code::Review;
-
-print "Successful!\n";
+Git::Code::Review->run();
