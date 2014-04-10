@@ -32,6 +32,8 @@ use Sub::Exporter -setup => {
         gcr_change_state
         gcr_not_resigned
         gcr_not_authored
+        gcr_commit_info
+        gcr_state_color
     )],
 };
 
@@ -51,10 +53,10 @@ my %EDITOR = (
 );
 # States of a Commit
 my %STATE = (
-    'locked'   => { type => 'user',   name => 'Locked' },
-    'review'   => { type => 'reset',  field => 'review_path' },
-    'approved' => { type => 'global', name  => 'Approved' },
-    'concerns' => { type => 'global', name  => 'Concerns' },
+    'locked'   => { type => 'user',   name  => 'Locked',      color => 'cyan' },
+    'review'   => { type => 'reset',  field => 'review_path', color => 'yellow' },
+    'approved' => { type => 'global', name  => 'Approved',    color => 'green' },
+    'concerns' => { type => 'global', name  => 'Concerns',    color => 'red' },
 );
 # General Config options
 my %CFG = (
@@ -425,6 +427,17 @@ sub gcr_not_authored {
     return $author ne $CFG{user};
 }
 
+=func gcr_state_color($state)
+
+Make coloring consistent in this function.
+
+=cut
+sub gcr_state_color {
+    my ($state) = @_;
+
+    return exists $STATE{$state} ? $STATE{$state}->{color} : 'magenta';
+}
+
 =func _get_review_path($path)
 
 Figure out the review path from a file path.
@@ -437,7 +450,7 @@ sub _get_review_path {
     my $path = File::Spec->catfile($AUDITDIR,$current_path);
     die "get_review_path(): nothing here $path" unless -f $path;
 
-    my $ISO = get_commit_date($current_path);
+    my $ISO = _get_commit_date($current_path);
     my @full = split /\-/, $ISO;
     my @date = @full[0,1];
     die "Something went wrong in calculating date" unless @date == 2;
