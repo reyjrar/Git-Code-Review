@@ -40,10 +40,7 @@ use Sub::Exporter -setup => {
 
 # Global Lexicals
 my $GITRC = Config::GitLike->new(confname => 'gitconfig');
-    die "git user.email is not configured" unless defined $GITRC->get(key => 'user.email');
-
 my $AUDITDIR = getcwd();
-    die "CWD=$AUDITDIR lacks a .git directory" unless -d File::Spec->catdir($AUDITDIR, '.git');
 
 # Editors supported
 my %EDITOR = (
@@ -62,11 +59,10 @@ my %STATE = (
 );
 # General Config options
 my %CFG = (
-    user   => $GITRC->get(key => 'user.email'),
     editor => exists $EDITOR{$ENV{EDITOR}} ? $ENV{EDITOR} : 'vim',
 );
 my %PATHS   = (
-    audit  => $AUDITDIR,
+    audit  => getcwd(),
     source => File::Spec->catdir($AUDITDIR,'source'),
 );
 my %ORIGINS = ();
@@ -87,6 +83,7 @@ Returns a copy of our configuration as a hash or hash ref.
 
 =cut
 sub gcr_config {
+    $CFG{user} = $GITRC->get(key => 'user.email');
     my %config = %CFG;
     return wantarray ? %config : \%config;
 }
@@ -112,6 +109,7 @@ sub gcr_repo {
     return $REPOS{$type} if exists $REPOS{$type};
     my $repo;
     eval {
+        gcr_config();
         $repo = Git::Repository->new( work_tree => $PATHS{$type} );
     };
     die "invalid repository/path : $type = $PATHS{$type}" unless defined $repo;
