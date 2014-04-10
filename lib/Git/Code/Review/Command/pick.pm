@@ -35,8 +35,19 @@ my %_resigned;
 
 sub opt_spec {
     return (
-        ['noop',       "Just run a sample selection."],
+#        ['noop',       "Just run a sample selection."],
     );
+}
+
+sub description {
+    my $DESC = <<"    EOH";
+
+    Reviewers performing the audit use the 'pick' command to lock a commit for review.
+    The command use Term::ReadLine to prompt the end-user for answers to how to handle
+    the commit.
+    EOH
+    $DESC =~ s/^[ ]{4}//mg;
+    return $DESC;
 }
 
 sub execute {

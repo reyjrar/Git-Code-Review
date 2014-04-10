@@ -19,6 +19,16 @@ sub opt_spec {
     );
 }
 
+sub description {
+    my $DESC = <<"    EOH";
+
+    This command allows reviewers to mark a commit previously flagged as a concern
+    to the approved status.  All necessary information will be prompted from the user.
+    EOH
+    $DESC =~ s/^[ ]{4}//mg;
+    return $DESC;
+}
+
 sub execute {
     my ($cmd,$opt,$args) = @_;
     my ($match) = @$args;

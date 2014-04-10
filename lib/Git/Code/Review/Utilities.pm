@@ -33,6 +33,7 @@ use Sub::Exporter -setup => {
         gcr_not_resigned
         gcr_not_authored
         gcr_commit_info
+        gcr_commit_message
         gcr_state_color
     )],
 };
@@ -57,6 +58,7 @@ my %STATE = (
     'review'   => { type => 'reset',  field => 'review_path', color => 'yellow' },
     'approved' => { type => 'global', name  => 'Approved',    color => 'green' },
     'concerns' => { type => 'global', name  => 'Concerns',    color => 'red' },
+    'comment'  => { type => 'global', name  => 'Comments',    color => 'white' },
 );
 # General Config options
 my %CFG = (

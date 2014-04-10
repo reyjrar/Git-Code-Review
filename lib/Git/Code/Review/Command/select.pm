@@ -31,6 +31,22 @@ sub opt_spec {
     );
 }
 
+sub description {
+    my $DESC = <<"    EOH";
+
+    This command is used to select a sample or all of the commits in the repository
+    which match a particular profile for review.
+
+    Example:
+
+        git code-review select --since 2014-03-01 --until 2014-04-01 --number 10 --reason "March Code Review"
+
+    The default profile matches all commits in the repository.
+    EOH
+    $DESC =~ s/^[ ]{4}//mg;
+    return $DESC;
+}
+
 sub execute {
     my ($cmd,$opt,$args) = @_;
 

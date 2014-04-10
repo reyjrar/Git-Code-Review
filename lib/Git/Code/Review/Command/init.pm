@@ -20,12 +20,26 @@ sub opt_spec {
 
 sub description {
     my $DESC = <<"    EOH";
-    git-code-review init - Initialize an audit repository
 
     This command is used to initialize an audit repository against a source code
     repository living elsewhere.  It uses submodules to acheive this.
+
+    Usage:
+
+        # Create a new audit repository
+        mkdir /audits/user-repo.git
+        cd /audits/user-repo.git
+        git init --bare
+
+        # Clone that to a work directory
+        cd ~
+        git clone /audits/user-repo.git
+
+        # Initialize the code review
+        git-code-review init --repo https://github.com/user/repo.git --branch master
+
     EOH
-    $DESC =~ s/^\s{4}//mg;
+    $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
 }
 
