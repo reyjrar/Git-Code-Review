@@ -17,7 +17,8 @@ my $START = strftime('%F',localtime(time-(3600*24*30)));
 
 # Dispatch Table for Searches
 my %SEARCH = (
-    path => \&log_params_path,
+    path   => \&log_params_path,
+    author => \&log_params_author,
 );
 
 sub opt_spec {
@@ -168,6 +169,11 @@ sub get_log_params {
 sub log_params_path {
     my ($opts,$term) = @_;
     return @{ $opts }, '--', $term;
+}
+
+sub log_params_author {
+    my($opts,$term) = @_;
+    return @{ $opts }, '--author', $term;
 }
 
 1;

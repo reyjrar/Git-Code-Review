@@ -27,7 +27,7 @@ sub description {
 sub execute {
     my($cmd,$opt,$args) = @_;
 
-    my %SHOW = map { $_ => 1 } split /,|\s+/, $opt->{state};
+    my %SHOW = map { $_ => 1 } exists $opt->{state} ? split /,|\s+/, $opt->{state} : ();
     my $audit = gcr_repo();
     gcr_reset();
 

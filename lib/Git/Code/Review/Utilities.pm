@@ -112,7 +112,7 @@ sub gcr_repo {
         gcr_config();
         $repo = Git::Repository->new( work_tree => $PATHS{$type} );
     };
-    die "invalid repository/path : $type = $PATHS{$type}" unless defined $repo;
+    die "invalid repository/path($type=$PATHS{$type}) : $@" unless defined $repo;
     return $REPOS{$type} = $repo;
 }
 

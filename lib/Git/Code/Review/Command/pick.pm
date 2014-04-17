@@ -97,7 +97,7 @@ sub resign {
 
     my $reason = prompt("Why are you resigning for this commit? ", menu => [
         q{No experience with systems covered.},
-        q{My eyes are bleeding.},
+        q{I am the author.},
         q{other},
     ]);
     if( $reason eq 'other' ) {
