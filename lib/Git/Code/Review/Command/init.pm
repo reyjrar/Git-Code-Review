@@ -57,9 +57,9 @@ sub execute {
 
     # Grab the URI
     my $repo = exists $opt->{repo} ? $opt->{repo}
-            : prompt "Enter the source repository:", validate => { "need more than 3 characters" => sub { length $_ > 3 } };
+            : prompt("Enter the source repository:", validate => { "need more than 3 characters" => sub { length $_ > 3 } });
     my $branch = exists $opt->{repo} ? $opt->{branch}
-            : prompt "Branch to track (default=master) :", validate => { "need more than 3 characters" => sub { length $_ > 3 } };
+            : prompt("Branch to track (default=master) :", validate => { "need more than 3 characters" => sub { length $_ > 3 } });
 
     # Initialize the sub module
     my $audit = gcr_repo();

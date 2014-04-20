@@ -61,8 +61,8 @@ sub execute {
 
     # We need a reason for this commit
     my $message =  exists $opt->{reason} && length $opt->{reason} > 10 ? $opt->{reason}
-                : prompt sprintf("Please provide the reason for the selection%s:", exists $opt->{reason} ? '(10+ chars)' : ''),
-                    validate => { "10+ characters, please" => sub { length $_ > 10 } };
+                : prompt(sprintf("Please provide the reason for the selection%s:", exists $opt->{reason} ? '(10+ chars)' : ''),
+                    validate => { "10+ characters, please" => sub { length $_ > 10 } });
 
     # Repositories
     my $source = gcr_repo('source');
