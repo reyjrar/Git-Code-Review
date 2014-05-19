@@ -82,10 +82,25 @@ sub gcr_dir {
 Returns a copy of our configuration as a hash or hash ref.
 
 =cut
+my %_config = ();
 sub gcr_config {
-    $CFG{user} = $GITRC->get(key => 'user.email');
-    my %config = %CFG;
-    return wantarray ? %config : \%config;
+
+    $CFG{user} = $GITRC->get(key => 'user.email') unless exists $CFG{user};
+
+    if(!keys %_config) {
+        %_config = %CFG;
+        foreach my $sub (qw(notification)) {
+            my $file = File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config");
+            debug("attempting to config for $sub from $file");
+            eval {
+                my $subrc = Config::GitLike->load_file($file);
+                debug({indent=>1}, "successfully loaded configuration.");
+                debug_var($subrc);
+                $_config{$sub} = $subrc;
+            };
+        }
+    }
+    return wantarray ? %_config : { %_config };
 }
 
 =func gcr_is_initialized()
@@ -131,6 +146,7 @@ sub gcr_mkdir {
         mkdir($dir,0755) unless -d $dir;
     }
     debug("audit_mkdir() created $dir");
+    return $dir;
 }
 
 =func gcr_origin($type)

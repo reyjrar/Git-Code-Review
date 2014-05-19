@@ -6,6 +6,7 @@ use warnings;
 use CLI::Helpers qw(:all);
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
+use Git::Code::Review::Notify;
 
 # Globals
 my $AUDITDIR = gcr_dir();
@@ -156,6 +157,15 @@ sub concerns {
     my $details = prompt("Explain: ", validate => { "Really, not even 10 characters? " => sub { length $_ > 10; } });
     verbose("+ Raising concern with $commit->{base} for $reason");
     gcr_change_state($commit, concerns => { reason => "$reason", message => join "\n",$reasons{$reason},$details });
+
+    # Do notify by email
+    Git::Code::Review::Notify::email(concerns => {
+        commit => $commit,
+        reason => {
+            short   => $reason,
+            details => $details,
+        },
+    });
 }
 
 1;

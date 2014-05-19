@@ -27,7 +27,7 @@ sub description {
 sub execute {
     my($cmd,$opt,$args) = @_;
 
-    my %SHOW = map { $_ => 1 } exists $opt->{state} ? split /,|\s+/, $opt->{state} : ();
+    my %SHOW = exists $opt->{state} ? map { $_ => 1 } split /,|\s+/, $opt->{state} : ();
     my $audit = gcr_repo();
     gcr_reset();
 
@@ -67,6 +67,8 @@ sub execute {
     else {
         output({color=>'green'}, "No commits flagged with concerns!");
     }
+    my $config = gcr_config();
+    debug_var($config);
 }
 
 1;

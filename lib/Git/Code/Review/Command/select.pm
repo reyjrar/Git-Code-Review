@@ -6,6 +6,7 @@ use warnings;
 use CLI::Helpers qw(:all);
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
+use Git::Code::Review::Notify;
 use POSIX qw(strftime);
 use YAML;
 
@@ -27,7 +28,7 @@ sub opt_spec {
         ['reason|r=s', "Reason for the selection, ie '2014-01 Review'",  ],
         ['since|s=s',  "Start date                     (Default: $START)",    { default => $START } ],
         ['until|u=s',  "End date                       (Default: $TODAY)",    { default => $TODAY } ],
-        ['number|n=i', "Number of commits,  -1 for all (Default: 25)",        { default => 25 } ],
+        ['number=i',   "Number of commits,  -1 for all (Default: 25)",        { default => 25 } ],
         ['profile|p=s',"Selection profile to use       (Default: 'default')", { default => 'default'} ],
     );
 }
@@ -50,6 +51,8 @@ sub description {
 
 sub execute {
     my ($cmd,$opt,$args) = @_;
+
+    debug_var($opt);
 
     # Git Log Options
     my @options = (
@@ -149,6 +152,19 @@ sub execute {
         my $msg = join("\n", $message, Dump(\%details));
         $audit->run('commit', '-m', $msg);
         gcr_push();
+
+        # Notify
+        Git::Code::Review::Notify::email(select => {
+            pool => {
+                matches   => \%matches,
+                total     => scalar(keys %pool),
+                selected  => scalar(@picks),
+                selection => [
+                    map { { gcr_commit_info($_) } } @picks
+                ],
+            },
+            reason => $message,
+        });
     }
 }
 
