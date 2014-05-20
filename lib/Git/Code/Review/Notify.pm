@@ -20,11 +20,6 @@ my %HEADERS = (
     'X-Automation-Function' => 'Code Review',
     'X-Automation-Server'   => hostname(),
 );
-my %TEMPLATES = (
-    concerns => {},
-    fixed    => {},
-    select   => {},
-);
 my $TEMPLATE_DIR = gcr_mkdir('.code-review','templates');
 $Template::Stash::HASH_OPS->{nsort_by_value} = sub {
     my ($hash) = @_;
@@ -46,6 +41,7 @@ sub email {
     # Email settings
     my %email = (
         cc      => $config{user},
+        from    => $config{user},
         headers => \%HEADERS
     );
 
@@ -68,7 +64,6 @@ sub email {
     if( exists $opts->{commit} && exists $opts->{commit}{author} ) {
         _add_value(\%email,to => $opts->{commit}{author});
     }
-
     debug_var(\%email);
 
     # Need valid email properties
@@ -79,18 +74,43 @@ sub email {
 
     my %VARIABLES = (
         %{ $opts },
-        config => \%config,
+        origins => { map { $_ => gcr_origin($_) } qw(audit source) },
+        config  => \%config,
     );
+    debug_var(\%VARIABLES);
 
     # Install Templates
     my %tmpl = Git::Code::Review::Notify::Templates::_install_templates();
     die "invalid template called for notify($name)" unless exists $tmpl{$name};
 
-
+    # Generate the content of the message
     my $data = '';
     $TEMPLATE->process("$name.tt", \%VARIABLES, \$data) || die "Error processing template($name): " . $TEMPLATE->error();
 
-    debug("Evaluated template and received: ", $data);
+    # Generate the email to send
+    if( defined $data && length $data ) {
+        debug("Evaluated template and received: ", $data);
+        my $subject = sprintf 'Git::Code::Review [%s] on %s', $name, $VARIABLES{origins}->{source};
+        my $msg = MIME::Lite->new(
+            From    => $email{from},
+            To      => $email{to},
+            Cc      => exists $email{cc} ? $email{cc} : [],
+            Subject => $subject,
+            Type    => exists $opts->{commit} ? 'multipart/mixed' : 'TEXT',
+        );
+        # Headers
+        if (exists $email{headers} && ref $email{headers} eq 'HASH') {
+            foreach my $k ( keys %{ $email{headers} }) {
+                $msg->add($k => $email{headers}->{$k});
+            }
+        }
+        # Data
+        $msg->data($data);
+
+        # Print out the happy email
+        debug($msg->as_string);
+
+    }
 
 }
 
@@ -141,6 +161,10 @@ my %_DEFAULTS = (
         FIX=<SHA1 of the fixing commit>
 
         Or reply with details for the reviewer.
+
+        Repositories involved:
+          Audit:  [% origins.audit %]
+          Source: [% origins.source %]
     },
     fixed => q{
         Greetings,
@@ -152,6 +176,10 @@ my %_DEFAULTS = (
         [% reason.details %]
 
         No further action is necessary.
+
+        Repositories involved:
+          Audit:  [% origins.audit %]
+          Source: [% origins.source %]
     },
     select => q{
         Greetings,
@@ -174,6 +202,10 @@ my %_DEFAULTS = (
         [% FOREACH commit IN pool.selection -%]
           * [% commit.sha1 %]    [% commit.date %]    [% commit.author %]
         [% END -%]
+
+        Repositories involved:
+          Audit:  [% origins.audit %]
+          Source: [% origins.source %]
     },
 );
 
