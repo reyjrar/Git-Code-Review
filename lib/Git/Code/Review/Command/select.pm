@@ -29,6 +29,7 @@ sub opt_spec {
         ['since|s=s',  "Start date                     (Default: $START)",    { default => $START } ],
         ['until|u=s',  "End date                       (Default: $TODAY)",    { default => $TODAY } ],
         ['number=i',   "Number of commits,  -1 for all (Default: 25)",        { default => 25 } ],
+        [ 'all',       "Select all mathching commits",],
         ['profile|p=s',"Selection profile to use       (Default: 'default')", { default => 'default'} ],
     );
 }
@@ -102,15 +103,36 @@ sub execute {
         debug({indent=>1,color=>"yellow"},"~ $search => $matches{$search}");
     }
     # Perform the pick!
-    my @pool = keys %pool;
     my @picks=();
-    while( @picks < $opt->{number} && @pool ) {
-        my $index = int(rand(scalar(@pool)));
-        push @picks, splice @pool, $index, 1;
-        debug({indent=>1}, "picked $picks[-1]");
+    my $method = 'random';
+    if( $opt->{all} ) {
+        @picks = grep { !gcr_commit_exists($_) } keys %pool;
+        debug({indent=>1}, "picked $_") for @picks;
+        output({color=>scalar(@picks) ? 'green' : 'red'},sprintf('%s PICKED: %d', scalar(@picks) ? '+' : '!', scalar(@picks)));
+        $method = 'all';
     }
-    my $got_enough = scalar(@picks) == $opt->{number} ? 1 : 0;
-    output({color=>$got_enough ? 'green' : 'red'},sprintf('%s PICKED: %d of %d', $got_enough ? '+' : '!', scalar(@picks), $opt->{number}));
+    else {
+        my @pool = keys %pool;
+        while( @picks < $opt->{number} && @pool ) {
+            my $index = int(rand(scalar(@pool)));
+            my($pick) = splice @pool, $index, 1;
+            if( gcr_commit_exists($pick) ) {
+                debug({indent=>1,color=>'yellow'}, "Commit $pick has already been added to the audit, skipping.");
+                next;
+            }
+            push @picks, $pick;
+            debug({indent=>1}, "picked $pick");
+        }
+        my $got_enough = scalar(@picks) == $opt->{number} ? 1 : 0;
+        $method = 'all' if !$got_enough;
+        output({color=>$got_enough ? 'green' : 'red'},sprintf('%s PICKED: %d of %d', $got_enough ? '+' : '!', scalar(@picks), $opt->{number}));
+    }
+
+    # We don't have enough
+    if(@picks < 1) {
+        output({color=>'green'}, "All commits for this selection have already been added to the audit!");
+        exit(0);
+    }
 
     # Place the patches in the appropriate directory
     if( !exists $opt->{noop} ) {
@@ -145,7 +167,7 @@ sub execute {
             state       => 'select',
             reviewer    => $CFG{user},
             criteria    => $opt,
-            selected    => $got_enough ? 'random' : 'all',
+            selected    => $method,
             source_repo => gcr_origin('source'),
             audit_repo  => gcr_origin('audit'),
         );

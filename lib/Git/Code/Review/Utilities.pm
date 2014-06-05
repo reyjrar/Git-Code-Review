@@ -32,6 +32,7 @@ use Sub::Exporter -setup => {
         gcr_change_state
         gcr_not_resigned
         gcr_not_authored
+        gcr_commit_exists
         gcr_commit_info
         gcr_commit_message
         gcr_state_color
@@ -230,6 +231,19 @@ sub gcr_push {
     local *STDERR = *STDOUT;
     debug($audit->run(qw(push origin master)));
 }
+
+=func gcr_commit_exists($sha1 | $partial_sha1 | $path)
+
+Returns 1 if the commit is in the audit already, or 0 otehrwise
+
+=cut
+sub gcr_commit_exists {
+    my ($object) = @_;
+    my $audit = gcr_repo();
+    my @matches = $audit->run('ls-files', "*$object*");
+    return @matches > 0;
+}
+
 
 =func gcr_commit_info($sha1 | $partial_sha1 | $path)
 
