@@ -29,7 +29,7 @@ sub opt_spec {
         ['since|s=s',  "Start date                     (Default: $START)",    { default => $START } ],
         ['until|u=s',  "End date                       (Default: $TODAY)",    { default => $TODAY } ],
         ['number=i',   "Number of commits,  -1 for all (Default: 25)",        { default => 25 } ],
-        [ 'all',       "Select all mathching commits",],
+        ['all',        "Select all mathching commits",],
         ['profile|p=s',"Selection profile to use       (Default: 'default')", { default => 'default'} ],
     );
 }
@@ -176,7 +176,7 @@ sub execute {
         gcr_push();
 
         # Notify
-        Git::Code::Review::Notify::email(select => {
+        Git::Code::Review::Notify::notify(select => {
             pool => {
                 matches   => \%matches,
                 total     => scalar(keys %pool),
@@ -192,9 +192,12 @@ sub execute {
 
 sub load_profile {
     my ($profile) = @_;
-    my %profile = (
+    # Select everything if there's no profiles
+    my %_default_profile = (
         path => [qw(**)],
     );
+
+    my %profile = %_default_profile;
     return wantarray ? %profile : \%profile;
 }
 

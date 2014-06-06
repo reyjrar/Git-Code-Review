@@ -45,10 +45,10 @@ my $AUDITDIR = getcwd();
 
 # Editors supported
 my %EDITOR = (
-    vim   => { readonly => [qw(-R)], comment => [] },
-    vi    => { readonly => [qw(-R)], comment => [] },
-    nano  => { readonly => [qw(-R)], comment => [] },
-    emacs => { __POSTFIX__ => 1 , readonly => ['--eval','(setq buffer-read-only t)'], comment => [] },
+    vim   => { readonly => [qw(-R)], modify => [] },
+    vi    => { readonly => [qw(-R)], modify => [] },
+    nano  => { readonly => [qw(-R)], modify => [] },
+    emacs => { __POSTFIX__ => 1 , readonly => ['--eval','(setq buffer-read-only t)'], modify => [] },
 );
 # States of a Commit
 my %STATE = (
@@ -280,7 +280,7 @@ sub gcr_commit_info {
 
 =func gcr_open_editor( mode => file )
 
-    Mode can be: readonly, comment
+    Mode can be: readonly, modify
 
     File is the file to be opened
 

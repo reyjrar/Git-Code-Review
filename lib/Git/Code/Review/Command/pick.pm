@@ -36,7 +36,7 @@ my %_resigned;
 
 sub opt_spec {
     return (
-#        ['noop',       "Just run a sample selection."],
+#        ['noop',       "Take no recorded actions."],
     );
 }
 
@@ -159,7 +159,7 @@ sub concerns {
     gcr_change_state($commit, concerns => { reason => "$reason", message => join "\n",$reasons{$reason},$details });
 
     # Do notify by email
-    Git::Code::Review::Notify::email(concerns => {
+    Git::Code::Review::Notify::notify(concerns => {
         commit => $commit,
         reason => {
             short   => $reason,

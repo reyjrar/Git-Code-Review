@@ -15,7 +15,7 @@ my %CFG = gcr_config();
 
 sub opt_spec {
     return (
-        #    ['noop',       "Just run a sample selection."],
+        #    ['noop',       "Take no recorded actions."],
     );
 }
 

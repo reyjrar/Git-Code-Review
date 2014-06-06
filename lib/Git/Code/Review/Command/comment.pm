@@ -17,7 +17,7 @@ my %CFG = gcr_config();
 
 sub opt_spec {
     return (
-        #    ['noop',       "Just run a sample selection."],
+        #    ['noop',       "Take no recorded actions."],
     );
 }
 
@@ -62,7 +62,7 @@ sub execute {
         "# Lines begining with a '#' will be skipped.",
     ;
     close $fh;
-    gcr_open_editor( comment => $tmpfile );
+    gcr_open_editor( modify => $tmpfile );
     # should have contents
     open($fh,"<", $tmpfile) or die "Tempfile($tmpfile) problems: $!";
     my @content = ();
