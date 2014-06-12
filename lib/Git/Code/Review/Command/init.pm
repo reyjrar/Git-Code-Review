@@ -88,6 +88,7 @@ sub execute {
 
     # Set our config directory for our artifacts;
     gcr_mkdir('.code-review');
+
     my $readme = File::Spec->catfile($AUDITDIR,'.code-review','README');
     if( !-e $readme ) {
         open(my $fh, '>', $readme) or die "cannot create file: $readme";

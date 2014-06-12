@@ -15,6 +15,7 @@ use File::Spec;
 use File::Temp qw(tempfile);
 use YAML;
 use POSIX qw(strftime);
+use Getopt::Long qw(:config pass_through);
 
 # Setup the exporter
 use Sub::Exporter -setup => {
@@ -27,6 +28,7 @@ use Sub::Exporter -setup => {
         gcr_origin
         gcr_reset
         gcr_push
+        gcr_profile
         gcr_open_editor
         gcr_view_commit
         gcr_change_state
@@ -38,6 +40,16 @@ use Sub::Exporter -setup => {
         gcr_state_color
     )],
 };
+
+# Global Options
+our $_OPTIONS_PARSED;
+my %_OPTIONS=();
+if( !$_OPTIONS_PARSED ) {
+    GetOptions(\%_OPTIONS,
+        'profile:s'
+    );
+}
+
 
 # Global Lexicals
 my $GITRC = Config::GitLike->new(confname => 'gitconfig');
@@ -52,7 +64,7 @@ my %EDITOR = (
 );
 # States of a Commit
 my %STATE = (
-    'locked'   => { type => 'user',   name  => 'Locked',      color => 'cyan' },
+    'locked'   => { type => 'global', name  => 'Locked',      color => 'cyan' },
     'review'   => { type => 'reset',  field => 'review_path', color => 'yellow' },
     'approved' => { type => 'global', name  => 'Approved',    color => 'green' },
     'concerns' => { type => 'global', name  => 'Concerns',    color => 'red' },
@@ -77,6 +89,26 @@ Returns the audit directory
 sub gcr_dir {
     return $AUDITDIR;
 }
+
+=func gcr_profile()
+
+Return the user's requested profile based on:
+  ~/.gitconfig
+  --profile
+  default
+
+=cut
+my $_profile;
+sub gcr_profile {
+    return $_profile if defined $_profile;
+
+    $_profile = $GITRC->get(key => 'code-review.profile');
+    $_profile = $_OPTIONS{profile} if exists $_OPTIONS{profile};
+    $_profile ||= 'default';
+
+    return $_profile;
+}
+
 
 =func gcr_config()
 
@@ -269,6 +301,7 @@ sub gcr_commit_info {
         review_time  => 'na',
         state        => _get_state($matches[0]),
         author       => _get_author($matches[0]),
+        profile      => (File::Spec->splitdir($matches[0]))[0],
         reviewer     => $CFG{user},
         source_repo  => gcr_origin('source'),
         audit_repo   => gcr_origin('audit'),
@@ -477,6 +510,7 @@ sub _get_review_path {
     my ($current_path) = @_;
 
     my $base = basename($current_path);
+    my $profile = (File::Spec->splitdir($current_path))[0];
     my $path = File::Spec->catfile($AUDITDIR,$current_path);
     die "get_review_path(): nothing here $path" unless -f $path;
 
@@ -485,7 +519,7 @@ sub _get_review_path {
     my @date = @full[0,1];
     die "Something went wrong in calculating date" unless @date == 2;
 
-    return File::Spec->catfile(@date,'Review',$base);
+    return File::Spec->catfile($profile,@date,'Review',$base);
 }
 
 =func _get_commit_date($path)

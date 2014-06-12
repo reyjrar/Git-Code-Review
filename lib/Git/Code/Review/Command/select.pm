@@ -15,6 +15,7 @@ my $AUDITDIR = gcr_dir();
 my %CFG = gcr_config();
 my $TODAY = strftime('%F',localtime);
 my $START = strftime('%F',localtime(time-(3600*24*30)));
+my $PROFILE = gcr_profile();
 
 # Dispatch Table for Searches
 my %SEARCH = (
@@ -30,7 +31,6 @@ sub opt_spec {
         ['until|u=s',  "End date                       (Default: $TODAY)",    { default => $TODAY } ],
         ['number=i',   "Number of commits,  -1 for all (Default: 25)",        { default => 25 } ],
         ['all',        "Select all mathching commits",],
-        ['profile|p=s',"Selection profile to use       (Default: 'default')", { default => 'default'} ],
     );
 }
 
@@ -78,7 +78,7 @@ sub execute {
     # Get the pool of commits
     my %pool = ();
     my %matches = ();
-    my %search = load_profile($opt->{profile});
+    my %search = load_profile($PROFILE);
     foreach my $type (keys %search) {
         next unless ref $search{$type} eq 'ARRAY';
         output("Searching by $type.");
@@ -139,8 +139,8 @@ sub execute {
         gcr_reset();
         foreach my $sha1 (@picks) {
             # Date Path by Year/Month
-            my @sub = split /\-/, (split /\s+/, $pool{$sha1}->{date})[0];
-            pop @sub;
+            my @sub = (split /\-/, (split /\s+/, $pool{$sha1}->{date})[0])[0];
+            unshift @sub, $PROFILE;
             push @sub, 'Review';
             my $dir = $AUDITDIR;
             while( @sub ) {
@@ -193,11 +193,25 @@ sub execute {
 sub load_profile {
     my ($profile) = @_;
     # Select everything if there's no profiles
-    my %_default_profile = (
-        path => [qw(**)],
-    );
+    my %profile = ();
 
-    my %profile = %_default_profile;
+    # Selection Config for the Profile
+    my $select_file = File::Spec->catfile($AUDITDIR, qw(.code-review profiles), $PROFILE, 'selection.yaml');
+    if($profile eq 'default') {
+        %profile = ( path => [qw(**)], );
+    }
+    elsif( -f $select_file) {
+        my $data;
+        my $rc = eval {
+            $data = YAML::LoadFile($select_file);
+            1;
+        };
+        if( $rc == 1 ) {
+           %profile = %{ $data };
+        }
+    }
+    die "error loading selection criteria for $profile" unless scalar(keys %profile);
+
     return wantarray ? %profile : \%profile;
 }
 

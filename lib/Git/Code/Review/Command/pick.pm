@@ -11,6 +11,7 @@ use Git::Code::Review::Notify;
 # Globals
 my $AUDITDIR = gcr_dir();
 my %CFG = gcr_config();
+my $PROFILE = gcr_profile();
 my %LABELS = (
     approve  => "Approve this commit.",
     concerns => "Raise a concern with this commit.",
@@ -70,10 +71,10 @@ sub execute {
         }
     }
     else {
-        my @picklist = grep { gcr_not_resigned($_) && gcr_not_authored($_) } $audit->run('ls-files', '*Review*');
+        my @picklist = grep { /^$PROFILE/ && gcr_not_resigned($_) && gcr_not_authored($_) } $audit->run('ls-files', '*Review*');
 
         if(!@picklist) {
-            output({color=>'green'},"All reviews completed!");
+            output({color=>'green'},"All reviews completed on profile: $PROFILE!");
             exit 0;
         }
         else {

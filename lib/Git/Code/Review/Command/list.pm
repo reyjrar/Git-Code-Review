@@ -58,6 +58,7 @@ sub execute {
                     exists $comments{$commit->{sha1}} ? "(comments:$comments{$commit->{sha1}})" : "",
                 )
             );
+            debug_var($commit);
         }
         output({color=>'cyan'}, sprintf "-[ Status %s from %s ]-",
             join(', ', map { "$_:$info{$_}" } sort keys %info),

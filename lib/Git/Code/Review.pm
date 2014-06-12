@@ -41,6 +41,8 @@ And each command has a basic overview of it's own options and uses.
     git-code-review help select
     git-code-review help list
     git-code-review help pick
+    git-code-review help comment
+    git-code-review help fixed
 
 =head2 SEE ALSO
 
