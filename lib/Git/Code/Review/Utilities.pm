@@ -90,20 +90,33 @@ sub gcr_dir {
     return $AUDITDIR;
 }
 
-=func gcr_profile()
+=func gcr_profile(exists => 1)
 
 Return the user's requested profile based on:
   ~/.gitconfig
   --profile
   default
 
+You can override the exists functionality by passing exists => 0;
+
 =cut
 my $_profile;
 sub gcr_profile {
+    my %checks = (
+        exists => 1,
+        @_
+    );
     return $_profile if defined $_profile;
 
     $_profile = $GITRC->get(key => 'code-review.profile');
     $_profile = $_OPTIONS{profile} if exists $_OPTIONS{profile};
+    if( $_profile && $checks{exists} ) {
+        my $profile_dir = File::Spec->catdir($AUDITDIR,qw{.code-review profiles},$_profile);
+        if( !-d $profile_dir ) {
+            output({stderr=>1,color=>'red'}, "Invalid profile: $_profile, missing $profile_dir");
+            exit 1;
+        }
+    }
     $_profile ||= 'default';
 
     return $_profile;
