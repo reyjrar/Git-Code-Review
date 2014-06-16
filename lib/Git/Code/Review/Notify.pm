@@ -16,14 +16,20 @@ use Module::Pluggable (
     sub_name    => 'notifications',
     require     => 1,
 );
+my $PROFILE = gcr_profile();
 
-my $TEMPLATE_DIR = gcr_mkdir('.code-review','templates');
+# Configure the Templates
+my @TEMPLATE_DIR = ( gcr_mkdir('.code-review','templates') );
+my $PROFILE_DIR = File::Spec->catdir(gcr_dir(), qw(.code-review profiles),$PROFILE,'templates');
+unshift @TEMPLATE_DIR, $PROFILE_DIR if -d $PROFILE_DIR;
+debug("Template search path:");
+debug_var(\@TEMPLATE_DIR);
 $Template::Stash::HASH_OPS->{nsort_by_value} = sub {
     my ($hash) = @_;
     return sort { $hash->{$a} <=> $hash->{$b} } keys %{ $hash };
 };
 my $TEMPLATE = Template->new({
-    INCLUDE_PATH => $TEMPLATE_DIR,
+    INCLUDE_PATH => \@TEMPLATE_DIR,
 });
 
 sub notify {
@@ -188,7 +194,7 @@ my %_DEFAULTS = (
 
 sub _install_templates {
     my %templates = ();
-    $TEMPLATE_DIR ||= gcr_mkdir('.code-review','templates');
+    my $TEMPLATE_DIR ||= gcr_mkdir('.code-review','templates');
     my $repo = gcr_repo();
 
     my $new = 0;

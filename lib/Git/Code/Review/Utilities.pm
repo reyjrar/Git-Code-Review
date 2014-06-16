@@ -136,7 +136,12 @@ sub gcr_config {
     if(!keys %_config) {
         %_config = %CFG;
         foreach my $sub (qw(notification)) {
-            my $file = File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config");
+            my @files = grep { -f $_ } (
+                File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config"),
+                File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config"),
+            );
+            next unless @files;
+            my $file = shift @files;
             debug("attempting to config for $sub from $file");
             eval {
                 my $subrc = Config::GitLike->load_file($file);

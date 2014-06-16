@@ -165,6 +165,7 @@ sub execute {
         }
         my %details = (
             state       => 'select',
+            profile     => $PROFILE,
             reviewer    => $CFG{user},
             criteria    => $opt,
             selected    => $method,
@@ -197,10 +198,7 @@ sub load_profile {
 
     # Selection Config for the Profile
     my $select_file = File::Spec->catfile($AUDITDIR, qw(.code-review profiles), $PROFILE, 'selection.yaml');
-    if($profile eq 'default') {
-        %profile = ( path => [qw(**)], );
-    }
-    elsif( -f $select_file) {
+    if( -f $select_file ) {
         my $data;
         my $rc = eval {
             $data = YAML::LoadFile($select_file);
@@ -209,6 +207,9 @@ sub load_profile {
         if( $rc == 1 ) {
            %profile = %{ $data };
         }
+    }
+    elsif($profile eq 'default') {
+        %profile = ( path => [qw(**)], );
     }
     die "error loading selection criteria for $profile" unless scalar(keys %profile);
 
