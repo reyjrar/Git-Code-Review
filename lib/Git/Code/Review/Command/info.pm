@@ -32,6 +32,8 @@ sub execute {
         $config{origin}->{$s} = gcr_origin($s);
     }
 
+    $config{profiles} = gcr_profiles();
+
     output({color=>'cyan'},"Git::Code::Review Config:");
     output(Dump \%config);
 }

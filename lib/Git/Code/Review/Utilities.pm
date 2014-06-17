@@ -29,6 +29,7 @@ use Sub::Exporter -setup => {
         gcr_reset
         gcr_push
         gcr_profile
+        gcr_profiles
         gcr_open_editor
         gcr_view_commit
         gcr_change_state
@@ -122,6 +123,22 @@ sub gcr_profile {
     return $_profile;
 }
 
+=func gcr_profiles()
+
+Returns a list of profiles with a selection file available
+
+=cut
+
+sub gcr_profiles {
+    my $repo = gcr_repo();
+    my @files = $repo->run('ls-files', '*/selection.yaml');
+    my %profiles = (default => 1);
+    foreach my $file (@files) {
+        my @parts = File::Spec->splitdir($file);
+        $profiles{$parts[-2]} = 1;
+    }
+    return wantarray ? sort keys %profiles : [ sort keys %profiles ];
+}
 
 =func gcr_config()
 
