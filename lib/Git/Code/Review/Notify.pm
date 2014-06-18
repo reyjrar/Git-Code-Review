@@ -42,8 +42,7 @@ sub notify {
 
     # Plugin Settings
     my %Plugins = (
-        cc      => $config{user},
-        from    => $config{user},
+        cc => $config{user},
     );
 
     # Handle Setup
@@ -65,6 +64,7 @@ sub notify {
             _add_value(\%Plugins,to => $opts->{commit}{author});
         }
     }
+    $Plugins{from} = $config{user} unless exists $Plugins{from};
     debug_var(\%Plugins);
 
     my %VARIABLES = (
@@ -110,27 +110,42 @@ sub notify {
 }
 
 sub _add_value {
-    my ($dest,$key,$value) = @_;
+    my ($dest,$path,$value) = @_;
+
+    # Determine key and the ref
+    my @path = split /\./, $path;
+    my $key = pop @path;
+    my $ref = $dest;
+    foreach my $sub (@path) {
+        # Initialize the sub element
+        $ref->{$sub} = exists $ref->{$sub} ? $ref->{$sub} : {};
+        # Advance the pointer.
+        $ref = $ref->{$sub};
+    }
 
     # Simplest
-    if(!exists $dest->{$key}) {
-       $dest->{$key} = $value;
-       return;
+    if(!exists $ref->{$key} || $key eq 'from') {
+       $ref->{$key} = $value;
     }
-
     # Both are string, create an array
-    if(!ref $dest->{$key} && !ref $value) {
-        $dest->{$key} = [ $dest->{$key}, $value ];
-        return;
+    elsif(!ref $ref->{$key} && !ref $value) {
+        $ref->{$key} = [ $ref->{$key}, $value ];
     }
-
     # Handle arrays
-    if(ref $dest->{$key} eq 'ARRAY') {
-        push @{ $dest->{$key} }, ref $value eq 'ARRAY' ? @{ $value } : $value;
-        return;
+    elsif(ref $ref->{$key} eq 'ARRAY') {
+        if (ref $value eq 'ARRAY') {
+            $ref->{$key} = [@{ $ref->{$key} },@{$value}];
+        }
+        else {
+            push @{ $ref->{$key} }, ref $value eq 'ARRAY' ? @{ $value } : $value;
+        }
     }
-
-    die "something unsuccessfully happened merging data";
+    # If we wind up with an array, de-dupe it
+    if (ref $ref->{$key} eq 'ARRAY') {
+        # De-dupe
+        my %hash = map {$_=>1} @{ $ref->{$key} };
+        $ref->{$key} = [keys %hash];
+    }
 }
 
 

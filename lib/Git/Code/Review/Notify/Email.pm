@@ -34,7 +34,7 @@ sub send {
     # Merge Headers
     foreach my $k (keys %HEADERS) {
         $config{headers} ||= {};
-        $config{headers}{$k} ||= $HEADERS{$k};
+        $config{headers}->{$k} ||= $HEADERS{$k};
     }
     my $data = delete $config{message};
     die "Message empty" unless defined $data && length $data > 0;

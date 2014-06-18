@@ -153,18 +153,17 @@ sub gcr_config {
     if(!keys %_config) {
         %_config = %CFG;
         foreach my $sub (qw(notification)) {
-            my @files = grep { -f $_ } (
-                File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config"),
-                File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config"),
-            );
-            next unless @files;
-            my $file = shift @files;
-            debug("attempting to config for $sub from $file");
+            # Here be dragons.
+            no warnings 'redefine';
+            # Going to overload these subroutines for this block to load files correctly.
+            local *Config::GitLike::global_file = sub { File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config") };
+            local *Config::GitLike::user_file = sub { File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")  };
+            debug("attempting to config for $sub");
             eval {
-                my $subrc = Config::GitLike->load_file($file);
+                my $c = Config::GitLike->new(confname => 'notfication');
                 debug({indent=>1}, "successfully loaded configuration.");
-                debug_var($subrc);
-                $_config{$sub} = $subrc;
+                debug_var($c->dump);
+                $_config{$sub} = { $c->dump };
             };
         }
     }
