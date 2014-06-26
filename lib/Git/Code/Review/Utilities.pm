@@ -263,20 +263,24 @@ sub gcr_reset {
             output({color=>'yellow'},"! Audit working tree is dirty, stashing files");
             $repo->run($type eq 'audit' ? qw{stash -u} : qw(reset --hard));
         }
-        verbose({color=>'cyan'},"= Swithcing to master branch.");
-        eval {
-            $repo->run(qw(checkout -b master));
-        };
-        if( my $err = $@ ) {
-            if( $err !~ /A branch named 'master'/ ) {
-                output({stderr=>1,color=>'red'}, "Error setting to master branch: $err");
-                exit 1;
+        if( $type eq 'audit' ) {
+            verbose({color=>'cyan'},"= Swithcing to master branch.");
+            eval {
+                $repo->run(qw(checkout -b master));
+            };
+            if( my $err = $@ ) {
+                if( $err !~ /A branch named 'master'/ ) {
+                    output({stderr=>1,color=>'red'}, "Error setting to master branch: $err");
+                    exit 1;
+                }
+                debug({color=>'red'}, "!! $err");
             }
-            debug({color=>'red'}, "!! $err");
         }
-        verbose({color=>'cyan'},"+ Initiating pull.");
+        verbose({color=>'cyan'},"+ Initiating pull from $origin");
         local *STDERR = *STDOUT;
-        my @output = $repo->run(qw{pull origin master});
+        my @output = $repo->run(
+            $type eq 'audit' ? qw(pull origin master) : 'pull'
+        );
         debug({color=>'magenta'}, @output);
     }
     else {

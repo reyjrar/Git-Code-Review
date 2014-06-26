@@ -1,3 +1,4 @@
+# ABSTRACT: Notification framework
 package Git::Code::Review::Notify;
 
 use strict;

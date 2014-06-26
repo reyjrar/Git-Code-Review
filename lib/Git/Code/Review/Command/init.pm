@@ -75,6 +75,7 @@ sub execute {
         );
         debug({color=>'yellow'},  "CMD=" . join(' ', $sub->cmdline));
         @out = $sub->final_output();
+        $audit->run(qw(submodule init));
     }
     if($sub->exit != 0) {
         output({stderr=>1,color=>'red'},"Submodule init failed, please try again");

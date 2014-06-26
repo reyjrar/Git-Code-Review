@@ -1,3 +1,4 @@
+# ABSTRACT: Notification by email
 package Git::Code::Review::Notify::Email;
 
 use strict;
