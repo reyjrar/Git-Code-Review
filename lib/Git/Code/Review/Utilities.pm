@@ -282,6 +282,26 @@ sub gcr_reset {
             $type eq 'audit' ? qw(pull origin master) : 'pull'
         );
         debug({color=>'magenta'}, @output);
+
+        # Submodule reset includes incrementing the submodule pointer.
+        if( $type eq 'source' ) {
+            # commit submodule update
+            eval {
+                my $audit = gcr_repo('audit');
+                my %CFG = gcr_config();
+                $audit->run(add => 'source');
+                $audit->run(commit => '-m',
+                    join("\n", "Source Repository Refresh",
+                        Dump({
+                            skip     => 'true',
+                            reviewer => $CFG{user},
+                            action   => 'source_refresh',
+                        })
+                    )
+                );
+                gcr_push();
+            };
+        }
     }
     else {
         die "no remote 'origin' available!";
