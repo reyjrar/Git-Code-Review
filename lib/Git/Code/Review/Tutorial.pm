@@ -45,6 +45,8 @@ You'll then need a working copy of the repository to start the audit:
     $ cd;
     $ git clone /repos/financial-code-audit.git
 
+=head2 Initializing Git::Code::Review
+
 With that configured, you'll need to initialize the Git::Code::Review details with the source repository.  This will
 create a submodule in the audit repository for referencing objects, performing selections, and validating fixes.
 
@@ -53,8 +55,28 @@ create a submodule in the audit repository for referencing objects, performing s
 You do not need write access to the source repository, and you don't need to track master!  After the submodule is initialized and some metadata
 computed and stored in the .code-review directory.  You're ready to start selecting commits.
 
-TODO: This would be where audit profiles are discussed, I'm finalizing what they look like.  For right now, only the default profile
-of "all commits" is available for the selection process.
+=head2 Profiles
+
+The default profile include all commits in the repository.  It is possible to add profiles to divy up the reviews amongst individuals or teams.
+
+To create a profile:
+
+    $ git code-review profile --add team_a
+
+You will be given the opportunity to tune the selection criteria and the notification config for the new profile.  Configure git to automatically use
+this profile for your audits:
+
+    $ git config --global code-review.profile team_a
+
+Now all commands will assume the newly configured "team_a" profile.
+
+Editing profiles is simple:
+
+    $ git code-review profile --edit team_a
+
+From there you can configure settings for the selection or notifcation.
+
+=head2 Selection
 
 To select commits we use the B<select> command.
     $ git-code-review select --since 2014-04-01 --number 15
@@ -62,6 +84,8 @@ To select commits we use the B<select> command.
 This will prompt you for a reason, which you can optionally add on the command line:
 
     $ git-code-review select --since 2014-04-01 --number 15 --reason "April Code Review"
+
+=head2 Picking a commit for review
 
 When this is complete, you can begin the audit by picking a commit from the audit!
 
@@ -79,7 +103,7 @@ editor is tracked, and when you exit the editor, you will be prompted for the ac
 
     Selection (1-5):
 
-=head2 Approval
+=head3 Approval
 
 This means the review of the code yielded no issues.  You will be asked why you want to approve this commit.  This
 is critical data if you are going to use this process as a control in an audit.
@@ -98,16 +122,18 @@ options will simply make the commit as approved.  Performing a list will show yo
 
     $ git-code-review list
     -[ Commits in the Audit :: /Users/brad/tmp/repo/ ]-
-        approved      2014-04-02      4464704ec55682a8768df3ce48c95f17e3081d2c        brad.lhotsky@booking.com
-        review        2014-04-02      cbc8940419189daaf6067b5517141af20fe6bc50        brad.lhotsky@booking.com
-        review        2014-04-02      ef93d4cc255b7977feb971a127de63423c1e82f9        brad.lhotsky@booking.com
-        review        2014-04-10      35f7be02814f0b6b459994910b6657277f32579f        brad.lhotsky@booking.com
-        review        2014-04-10      8a91765c642471093ecfa55e11b9448e60b744dc        brad.lhotsky@booking.com
-        review        2014-04-10      af68e98711a8fad9fa9d4cfd7b2820e8d9dc90f9        brad.lhotsky@booking.com
-        review        2014-04-10      e2d9a4f6da8285a6c4eb5b61448bb2a9e6f31951        brad.lhotsky@booking.com
-    -[ Status approved:1, review:6 from https://github.com/reyjrar/Git-Code-Review.git ]-
+        default   approved      2014-04-02      4464704ec55682a8768df3ce48c95f17e3081d2c        brad.lhotsky@booking.com
+        default   review        2014-04-02      cbc8940419189daaf6067b5517141af20fe6bc50        brad.lhotsky@booking.com
+        default   review        2014-04-02      ef93d4cc255b7977feb971a127de63423c1e82f9        brad.lhotsky@booking.com
+        default   review        2014-04-10      35f7be02814f0b6b459994910b6657277f32579f        brad.lhotsky@booking.com
+        default   review        2014-04-10      8a91765c642471093ecfa55e11b9448e60b744dc        brad.lhotsky@booking.com
+        default   review        2014-04-10      af68e98711a8fad9fa9d4cfd7b2820e8d9dc90f9        brad.lhotsky@booking.com
+        default   review        2014-04-10      e2d9a4f6da8285a6c4eb5b61448bb2a9e6f31951        brad.lhotsky@booking.com
+    -[ Status  : approved:1, review:6 ]-
+    -[ Profile : default:7 team_a:0 ]-
+    -[ Source  : https://github.com/reyjrar/Git-Code-Review.git ]-
 
-=head2 Concerns
+=head3 Concerns
 
 Raising a concern with a commit will prompt you for a reason:
 
@@ -125,16 +151,18 @@ history and optionally mailed to the commit author (TODO).  You can see the outp
 
     $ git-code-review list
     -[ Commits in the Audit :: /Users/brad/tmp/repo/ ]-
-        approved      2014-04-02      4464704ec55682a8768df3ce48c95f17e3081d2c        brad.lhotsky@booking.com
-        concerns      2014-04-02      cbc8940419189daaf6067b5517141af20fe6bc50        brad.lhotsky@booking.com
-        review        2014-04-02      ef93d4cc255b7977feb971a127de63423c1e82f9        brad.lhotsky@booking.com
-        review        2014-04-10      35f7be02814f0b6b459994910b6657277f32579f        brad.lhotsky@booking.com
-        review        2014-04-10      8a91765c642471093ecfa55e11b9448e60b744dc        brad.lhotsky@booking.com
-        review        2014-04-10      af68e98711a8fad9fa9d4cfd7b2820e8d9dc90f9        brad.lhotsky@booking.com
-        review        2014-04-10      e2d9a4f6da8285a6c4eb5b61448bb2a9e6f31951        brad.lhotsky@booking.com
-    -[ Status approved:1, concerns:1, review:5 from https://github.com/reyjrar/Git-Code-Review.git ]-
+        default   approved      2014-04-02      4464704ec55682a8768df3ce48c95f17e3081d2c        brad.lhotsky@booking.com
+        default   concerns      2014-04-02      cbc8940419189daaf6067b5517141af20fe6bc50        brad.lhotsky@booking.com
+        default   review        2014-04-02      ef93d4cc255b7977feb971a127de63423c1e82f9        brad.lhotsky@booking.com
+        default   review        2014-04-10      35f7be02814f0b6b459994910b6657277f32579f        brad.lhotsky@booking.com
+        default   review        2014-04-10      8a91765c642471093ecfa55e11b9448e60b744dc        brad.lhotsky@booking.com
+        default   review        2014-04-10      af68e98711a8fad9fa9d4cfd7b2820e8d9dc90f9        brad.lhotsky@booking.com
+        default   review        2014-04-10      e2d9a4f6da8285a6c4eb5b61448bb2a9e6f31951        brad.lhotsky@booking.com
+    -[ Status approved:1, concerns:1, review:5 ]-
+    -[ Profile : default:7 team_a:0 ]-
+    -[ Source  : https://github.com/reyjrar/Git-Code-Review.git ]-
 
-=head2 Resignation
+=head3 Resignation
 
 There are certain times when you would like to resign from a commit that was picked for you.  You may not have experience
 with the system, or you maybe the author.  In that case, resigning will prevent you from picking that commit again, while
@@ -149,16 +177,18 @@ leaving it available for other reviewers.
 You will then see that reflected in your list, while other reviewers will see the commit as ready to review:
 
     -[ Commits in the Audit :: /Users/brad/tmp/repo/ ]-
-        approved      2014-04-02      4464704ec55682a8768df3ce48c95f17e3081d2c        brad.lhotsky@booking.com
-        concerns      2014-04-02      cbc8940419189daaf6067b5517141af20fe6bc50        brad.lhotsky@booking.com
-        resigned      2014-04-02      ef93d4cc255b7977feb971a127de63423c1e82f9        brad.lhotsky@booking.com
-        review        2014-04-10      35f7be02814f0b6b459994910b6657277f32579f        brad.lhotsky@booking.com
-        review        2014-04-10      8a91765c642471093ecfa55e11b9448e60b744dc        brad.lhotsky@booking.com
-        review        2014-04-10      af68e98711a8fad9fa9d4cfd7b2820e8d9dc90f9        brad.lhotsky@booking.com
-        review        2014-04-10      e2d9a4f6da8285a6c4eb5b61448bb2a9e6f31951        brad.lhotsky@booking.com
-    -[ Status approved:1, concerns:1, resigned:1, review:4 from https://github.com/reyjrar/Git-Code-Review.git ]-
+        default   approved      2014-04-02      4464704ec55682a8768df3ce48c95f17e3081d2c        brad.lhotsky@booking.com
+        default   concerns      2014-04-02      cbc8940419189daaf6067b5517141af20fe6bc50        brad.lhotsky@booking.com
+        default   resigned      2014-04-02      ef93d4cc255b7977feb971a127de63423c1e82f9        brad.lhotsky@booking.com
+        default   review        2014-04-10      35f7be02814f0b6b459994910b6657277f32579f        brad.lhotsky@booking.com
+        default   review        2014-04-10      8a91765c642471093ecfa55e11b9448e60b744dc        brad.lhotsky@booking.com
+        default   review        2014-04-10      af68e98711a8fad9fa9d4cfd7b2820e8d9dc90f9        brad.lhotsky@booking.com
+        default   review        2014-04-10      e2d9a4f6da8285a6c4eb5b61448bb2a9e6f31951        brad.lhotsky@booking.com
+    -[ Status approved:1, concerns:1, resigned:1, review:4 ]-
+    -[ Profile : default:7 team_a:0 ]-
+    -[ Source  : https://github.com/reyjrar/Git-Code-Review.git ]-
 
-=head2 Skip
+=head3 Skip
 
 You can use the skip command to free your lock on that commit.  The lock/skip process is logged, but will allow you to free
 the commit for another time or another author.

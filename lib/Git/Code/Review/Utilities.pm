@@ -111,7 +111,7 @@ sub gcr_profile {
 
     $_profile = $GITRC->get(key => 'code-review.profile');
     $_profile = $_OPTIONS{profile} if exists $_OPTIONS{profile};
-    if( $_profile && $checks{exists} ) {
+    if( $_profile && $checks{exists} && $_profile ne 'default' ) {
         my $profile_dir = File::Spec->catdir($AUDITDIR,qw{.code-review profiles},$_profile);
         if( !-d $profile_dir ) {
             output({stderr=>1,color=>'red'}, "Invalid profile: $_profile, missing $profile_dir");
