@@ -91,6 +91,10 @@ When this is complete, you can begin the audit by picking a commit from the audi
 
     $ git-code-review pick
 
+You can also specify a date range for the commits to pick.  If you want a commit from June 2014:
+
+    $ git code-review pick --since 2014-06-01 --until 2014-06-30
+
 This will randomly select a commit from the list and present it to you in your $EDITOR.  The time spent in your
 editor is tracked, and when you exit the editor, you will be prompted for the action you'd like to take:
 
@@ -173,9 +177,9 @@ leaving it available for other reviewers.
         1. I am the author.
         2. No experience with systems covered.
         3. other
-        
+
     Selection (1-3):
-        
+
 You will then see that reflected in your list, while other reviewers will see the commit as ready to review:
 
     -[ Commits in the Audit :: /Users/brad/tmp/repo/ ]-
