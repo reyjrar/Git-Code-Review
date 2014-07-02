@@ -89,7 +89,11 @@ This will prompt you for a reason, which you can optionally add on the command l
 
 When this is complete, you can begin the audit by picking a commit from the audit!
 
-    $ git-code-review pic
+    $ git-code-review pick
+
+You can also specify a date range for the commits to pick.  If you want a commit from June 2014:
+
+    $ git code-review pick --since 2014-06-01 --until 2014-06-30
 
 This will randomly select a commit from the list and present it to you in your $EDITOR.  The time spent in your
 editor is tracked, and when you exit the editor, you will be prompted for the action you'd like to take:
