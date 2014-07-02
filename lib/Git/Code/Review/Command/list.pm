@@ -4,15 +4,18 @@ use strict;
 use warnings;
 
 use CLI::Helpers qw(:all);
-use Git::Code::Review::Utilities qw(:all);
-use Git::Code::Review -command;
 use File::Basename;
 use File::Spec;
+use Git::Code::Review::Utilities qw(:all);
+use Git::Code::Review -command;
+use YAML;
 
 sub opt_spec {
     return (
         ['state=s',    "CSV of states to show."],
         ['all',        "Don't filter by profile."],
+        ['since|s:s',  "Commit start date, none if not specified", {default => "0000-00-00"}],
+        ['until|u:s',  "Commit end date, none if not specified",   {default => "9999-99-99"}],
     );
 }
 
@@ -37,7 +40,7 @@ sub execute {
     if( @list ) {
         my %states = ();
         my %profiles = ();
-        my @commits = map { $_=gcr_commit_info( basename $_ ) } @list;
+        my @commits = grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} } map { $_=gcr_commit_info( basename $_ ) } @list;
         output({color=>'cyan'}, sprintf "-[ Commits in the Audit %s:: %s ]-",
             scalar(keys %SHOW) ? '(' . join(',', sort keys %SHOW) . ') ' : '',
             gcr_origin('audit')
