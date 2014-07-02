@@ -7,15 +7,16 @@ use warnings;
 
 # Utility Modules
 use CLI::Helpers qw(:all);
-use Git::Repository;
 use Config::GitLike;
 use Cwd;
 use File::Basename;
 use File::Spec;
 use File::Temp qw(tempfile);
-use YAML;
-use POSIX qw(strftime);
 use Getopt::Long qw(:config pass_through);
+use Git::Repository;
+use Hash::Merge;
+use POSIX qw(strftime);
+use YAML;
 
 # Setup the exporter
 use Sub::Exporter -setup => {
@@ -150,21 +151,30 @@ sub gcr_config {
 
     $CFG{user} = $GITRC->get(key => 'user.email') unless exists $CFG{user};
 
+    my $merge = Hash::Merge->new('STORAGE_PRECEDENT');
     if(!keys %_config) {
         %_config = %CFG;
         foreach my $sub (qw(notification)) {
             # Here be dragons.
-            no warnings 'redefine';
+            #no warnings 'redefine';
             # Going to overload these subroutines for this block to load files correctly.
-            local *Config::GitLike::global_file = sub { File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config") };
-            local *Config::GitLike::user_file = sub { File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")  };
+            #local *Config::GitLike::global_file = sub { File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config") };
+            #local *Config::GitLike::user_file = sub { File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")  };
+            my @files = (
+                File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config"),
+                File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")
+            );
             debug("attempting to config for $sub");
-            eval {
-                my $c = Config::GitLike->new(confname => 'notfication');
-                debug({indent=>1}, "successfully loaded configuration.");
-                debug_var($c->dump);
-                $_config{$sub} = { $c->dump };
-            };
+            my @configs = ();
+            foreach my $file (@files) {
+                next unless -f $file;
+                eval {
+                    my $c = Config::GitLike->load_file($file);
+                    push @configs, $c;
+                };
+            }
+            next unless @configs;
+            $_config{$sub} = @configs > 1 ? $merge->merge(@configs) : $configs[0];
         }
     }
     return wantarray ? %_config : { %_config };
