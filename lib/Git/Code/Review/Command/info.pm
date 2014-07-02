@@ -34,7 +34,8 @@ sub execute {
 
     $config{profiles} = gcr_profiles();
 
-    output({color=>'cyan'},"Git::Code::Review Config:");
+    my $profile = gcr_profile();
+    output({color=>'cyan'},"Git::Code::Review Config for (profile:$profile):");
     output(Dump \%config);
 }
 
