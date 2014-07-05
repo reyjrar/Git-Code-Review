@@ -4,7 +4,7 @@ Git::Code::Review - Tools for performing code review using Git as the backend
 
 # VERSION
 
-version 0.4
+version 0.5
 
 # SYNOPSIS
 
