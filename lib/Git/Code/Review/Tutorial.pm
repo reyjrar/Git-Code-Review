@@ -79,6 +79,7 @@ From there you can configure settings for the selection or notifcation.
 =head2 Selection
 
 To select commits we use the B<select> command.
+
     $ git-code-review select --since 2014-04-01 --number 15
 
 This will prompt you for a reason, which you can optionally add on the command line:
