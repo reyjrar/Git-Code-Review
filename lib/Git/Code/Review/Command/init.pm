@@ -54,6 +54,20 @@ sub execute {
         output({color=>'green'},"Already initialized!");
         exit 0;
     }
+    # Check status of this repository
+    my $audit = gcr_repo();
+    my @files = grep !/README/, $audit->run('ls-files');
+    if(@files) {
+        output({color=>'red'}, "WARNING: This repository contains files!!");
+        output({indent=>1}, "Git::Code::Review is designed to track your source repository as a submodule, you should start a separate remote for audits!");
+        if(!confirm("Are you ABSOLUTELY SURE you want to continue?") || !confirm("This is about to get real. Take a deep breath and think again, are you sure?")) {
+            output({color=>"cyan"}, "Wisely aborting on your command.");
+            exit;
+        }
+        else {
+            output({clear=>3,color=>'yellow'}, "You have been warned, dragons are the least of your concerns.");
+        }
+    }
 
     # Grab the URI
     my $repo = exists $opt->{repo} ? $opt->{repo}
@@ -62,7 +76,6 @@ sub execute {
             : prompt("Branch to track (default=master) :", validate => { "need more than 3 characters" => sub { length $_ > 3 } });
 
     # Initialize the sub module
-    my $audit = gcr_repo();
     my $sub;
     my @out;
     {
