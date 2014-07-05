@@ -31,6 +31,8 @@ sub description {
 sub execute {
     my($cmd,$opt,$args) = @_;
 
+    die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+
     my %SHOW = exists $opt->{state} ? map { $_ => 1 } split /,|\s+/, $opt->{state} : ();
     my $audit = gcr_repo();
     my $profile = gcr_profile();

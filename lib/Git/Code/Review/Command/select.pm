@@ -52,8 +52,9 @@ sub description {
 
 sub execute {
     my ($cmd,$opt,$args) = @_;
-
     debug_var($opt);
+
+    die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
 
     # Git Log Options
     my @options = (
@@ -81,7 +82,7 @@ sub execute {
     my %search = load_profile($PROFILE);
     foreach my $type (keys %search) {
         next unless ref $search{$type} eq 'ARRAY';
-        output("Searching by $type.");
+        verbose("Searching by $type.");
         my $matches=0;
         foreach my $term (@{ $search{$type} }) {
             my @full = get_log_params($type,\@options,$term);
@@ -130,7 +131,7 @@ sub execute {
 
     # We don't have enough
     if(@picks < 1) {
-        output({color=>'green'}, "All commits for this selection have already been added to the audit!");
+        output({color=>'green'}, "All commits from $opt->{since} to $opt->{until} for the $PROFILE profile are already in the audit.");
         exit(0);
     }
 

@@ -35,6 +35,8 @@ sub execute {
     my ($cmd,$opt,$args) = @_;
     my ($match) = @$args;
 
+    die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+
     my $audit = gcr_repo();
     gcr_reset();
 

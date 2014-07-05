@@ -26,6 +26,8 @@ sub description {
 sub execute {
     my($cmd,$opt,$args) = @_;
 
+    die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+
     my %config = gcr_config();
     foreach my $s (qw(source audit)) {
         no warnings;

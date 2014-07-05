@@ -56,6 +56,8 @@ sub description {
 sub execute {
     my($cmd,$opt,$args) = @_;
 
+    die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+
     # Grab the audit repo handle, reset
     my $audit = gcr_repo();
     gcr_reset();

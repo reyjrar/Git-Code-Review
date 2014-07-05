@@ -43,6 +43,8 @@ sub execute {
     debug("Options Parsed.");
     debug_var($opt);
 
+    die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+
     my $audit = gcr_repo();
     gcr_reset();
     my %profiles;

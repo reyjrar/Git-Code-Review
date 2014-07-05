@@ -13,8 +13,8 @@ my $AUDITDIR = gcr_dir();
 
 sub opt_spec {
     return (
-        ['repo|r=s',   "Source repository for the audit", {} ],
-        ['branch|b=s', "Branch in the repo to track",     { default => 'master' } ],
+        ['repo|r=s',   "Source repository for the audit", ],
+        ['branch|b=s', "Branch in the repo to track",     ],
     );
 }
 
@@ -72,8 +72,9 @@ sub execute {
     # Grab the URI
     my $repo = exists $opt->{repo} ? $opt->{repo}
             : prompt("Enter the source repository:", validate => { "need more than 3 characters" => sub { length $_ > 3 } });
-    my $branch = exists $opt->{repo} ? $opt->{branch}
-            : prompt("Branch to track (default=master) :", validate => { "need more than 3 characters" => sub { length $_ > 3 } });
+    my $branch = exists $opt->{branch} ? $opt->{branch}
+            : prompt("Branch to track (default=master) :");
+    $branch ||= "master";
 
     # Initialize the sub module
     my $sub;
