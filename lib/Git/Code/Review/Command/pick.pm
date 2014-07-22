@@ -48,6 +48,11 @@ sub description {
     Reviewers performing the audit use the 'pick' command to lock a commit for review.
     The command use Term::ReadLine to prompt the end-user for answers to how to handle
     the commit.
+
+    You can optionally pass a SHA1 of a commit in the 'review' state that you
+    haven't authored to review a specific commit, e.g.
+
+        git code-review pick <SHA1>
     EOH
     $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
@@ -73,6 +78,15 @@ sub execute {
             $commit = gcr_commit_info(
                 prompt("!! You are currently locking the following commits, select one to action: ", menu => \@locked)
             );
+        }
+    }
+    elsif(ref $args eq 'ARRAY' && @$args) {
+        ($commit)  = map { $_=gcr_commit_info($_) } $audit->run('ls-files', "*$args->[0]*.patch");
+        die "no valid commits found matching $args->[0]" unless defined $commit;
+        die "Commit not in review state, it is in '$commit->{state}'" unless $commit->{state} eq 'review';
+        if( $commit->{author} eq $CFG{user} ) {
+            output({stderr=>1,color=>'red'}, "Nice try! You can't review your own commits.");
+            exit 1;
         }
     }
     else {
