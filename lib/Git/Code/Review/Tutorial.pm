@@ -123,9 +123,11 @@ Pick defaults to using a randomized ordering for returning commits.  This is int
 reviewing code at the same time.  Not wanting to lock you into our madness, you can re-order the pick using the order which has
 3 options:
 
-1. **asc** - By date ascending
-2. **desc** - By date descending
-3. **random** - The default, pick a random commit
+=item  B<asc> - By date ascending
+
+=item  B<desc> - By date descending
+
+=item  B<random> - The default, pick a random commit
 
 To specify you'd like the earliest available commit, use:
 
