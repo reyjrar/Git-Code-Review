@@ -66,11 +66,11 @@ my %EDITOR = (
 );
 # States of a Commit
 my %STATE = (
-    'locked'   => { type => 'global', name  => 'Locked',      color => 'cyan' },
+    'locked'   => { type => 'user',   name  => 'Locked',      color => 'cyan'   },
     'review'   => { type => 'reset',  field => 'review_path', color => 'yellow' },
-    'approved' => { type => 'global', name  => 'Approved',    color => 'green' },
-    'concerns' => { type => 'global', name  => 'Concerns',    color => 'red' },
-    'comment'  => { type => 'global', name  => 'Comments',    color => 'white' },
+    'approved' => { type => 'global', name  => 'Approved',    color => 'green'  },
+    'concerns' => { type => 'global', name  => 'Concerns',    color => 'red'    },
+    'comment'  => { type => 'global', name  => 'Comments',    color => 'white'  },
 );
 # General Config options
 my %CFG = (
@@ -278,7 +278,7 @@ sub gcr_reset {
     $type ||= 'audit';
     my $repo = gcr_repo($type);
     # Stash any local changes, and pull master
-    output("+ Reseting to origin:master, any changes will be stashed.");
+    output({color=>'magenta'},"+ [$type] Reseting to origin:master, any changes will be stashed.");
     my $origin = gcr_origin($type);
     if(defined $origin) {
         verbose("= Found origin, checking working tree status.");
@@ -290,7 +290,7 @@ sub gcr_reset {
         if( $type eq 'audit' ) {
             verbose({color=>'cyan'},"= Swithcing to master branch.");
             eval {
-                $repo->run(qw(checkout -b master));
+                $repo->run(qw(checkout master));
             };
             if( my $err = $@ ) {
                 if( $err !~ /A branch named 'master'/ ) {

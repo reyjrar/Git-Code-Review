@@ -86,6 +86,7 @@ sub execute {
         my $matches=0;
         foreach my $term (@{ $search{$type} }) {
             my @full = get_log_params($type,\@options,$term);
+            debug("Running: git log " . join(' ', @full));
             foreach my $info ($source->run(log => @full)) {
                 my ($commit,$date) = split /\s+/, $info, 2;
                 my $dupe = exists $pool{$commit} ? 1 : 0;
@@ -201,11 +202,14 @@ sub load_profile {
     my $select_file = File::Spec->catfile($AUDITDIR, qw(.code-review profiles), $PROFILE, 'selection.yaml');
     if( -f $select_file ) {
         my $data;
-        my $rc = eval {
+        eval {
             $data = YAML::LoadFile($select_file);
-            1;
         };
-        if( $rc == 1 ) {
+        if( my $err = $@ ) {
+            output({stderr=>1,color=>'red'}, "Error loading profile YAML: $err");
+            exit 1;
+        }
+        else {
            %profile = %{ $data };
         }
     }
