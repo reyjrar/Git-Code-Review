@@ -37,6 +37,7 @@ my %_resigned;
 
 sub opt_spec {
     return (
+        ['order:s',    "How to order the commits picked: random, asc, or desc  (Default: random)", {default=>'random'}],
         ['since|s:s',  "Commit start date, none if not specified", {default => "0000-00-00"}],
         ['until|u:s',  "Commit end date, none if not specified",   {default => "9999-99-99"}],
     );
@@ -90,8 +91,10 @@ sub execute {
         }
     }
     else {
-        my @picklist = grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} }
-                       map { $_=gcr_commit_info($_) }
+        # Generate an ordered picklist w/o my commits and w/o my resignations
+        my @picklist = sort { $a->{date} cmp $b->{date} }
+                       grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} }
+                       map  { $_=gcr_commit_info($_) }
                        grep { /^$PROFILE/ && gcr_not_resigned($_) && gcr_not_authored($_) }
                     $audit->run('ls-files', '*Review*');
 
@@ -102,7 +105,13 @@ sub execute {
         else {
             output({color=>"cyan"}, sprintf("+ Picklist currently contains %d commits.",scalar(@picklist)));
         }
-        $commit = splice @picklist, int(rand(@picklist)), 1;
+        my %idx = (
+            asc    => 0,
+            desc   => -1,
+            random => int(rand(@picklist)),
+        );
+        $commit = exists $idx{lc $opt->{order}} ? $picklist[$idx{lc $opt->{order}}] : $picklist[$idx{random}];
+
     }
     # Move to the locked state
     gcr_change_state($commit,'locked', 'Locked.');
