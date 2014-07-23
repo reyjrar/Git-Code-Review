@@ -33,6 +33,7 @@ use Sub::Exporter -setup => {
         gcr_profiles
         gcr_open_editor
         gcr_view_commit
+        gcr_view_commit_files
         gcr_change_state
         gcr_not_resigned
         gcr_not_authored
@@ -400,6 +401,7 @@ sub gcr_commit_info {
     File is the file to be opened
 
 =cut
+my %timing=();
 sub gcr_open_editor {
     my ($mode,$file) = @_;
 
@@ -426,7 +428,9 @@ sub gcr_open_editor {
         my $rc = waitpid($pid,0);
         debug("Child process $pid exited with $rc");
         my $diff = time - $start;
-        return sprintf('%dm%ds',$diff/60,$diff%60);
+        $timing{$file} ||= 0;
+        $timing{$file} +=  $diff;
+        return sprintf('%dm%ds',$timing{$file}/60,$timing{$file}%60);
     }
     return; # Shouldn't get here.
 }
@@ -441,6 +445,38 @@ sub gcr_view_commit {
     my ($commit) = @_;
     $commit->{review_time} = gcr_open_editor(readonly => File::Spec->catfile($AUDITDIR,$commit->{current_path}));
 }
+
+=func gcr_view_commit_files
+
+Display a menu containing the files mentioned in the commit with the ability to view
+the contents of one of those files.
+
+=cut
+sub gcr_view_commit_files {
+    my ($commit) = @_;
+    die "Source submodule is broken!" unless gcr_is_initialized();
+
+    # Grab source repository
+    my $source = gcr_repo('source');
+    # Pull source
+    gcr_reset('source');
+
+    my @files  = $source->run(qw(diff-tree --no-commit-id --name-only -r), $commit->{sha1});
+
+    die "Weird, no files referenced in $commit->{sha1}" unless @files;
+
+    my $selection = prompt("Which file would you like to view?", menu => \@files);
+    my $filename = File::Spec->catfile($AUDITDIR,'source',$selection);
+
+    if( -f $filename ) {
+        gcr_open_editor(readonly => $filename);
+    }
+    else {
+        output({color=>'yellow'}, "!! Selected file doesn't exist in the most recent checkout: $selection");
+    }
+    return;
+}
+
 
 =func gcr_change_state($commit_info,$state,$details)
 

@@ -13,10 +13,12 @@ my $AUDITDIR = gcr_dir();
 my %CFG = gcr_config();
 my $PROFILE = gcr_profile();
 my %LABELS = (
-    approve  => "Approve this commit.",
-    concerns => "Raise a concern with this commit.",
-    resign   => "Resign from this commit.",
-    skip     => "Skip (just exits unlocking the commit.)"
+    approve  => "[Approve] this commit.",
+    concerns => "Raise a [concern] with this commit.",
+    resign   => "[Resign] from this commit.",
+    skip     => "Skip (just exits unlocking the commit.)",
+    _view    => "(View) Commit again.",
+    _file    => "(View) A file mentioned in the commit.",
 );
 my %ACTIONS = (
     approve  => \&approve,
@@ -117,8 +119,18 @@ sub execute {
     gcr_change_state($commit,'locked', 'Locked.');
 
     # Show the Commit
-    gcr_view_commit($commit);
-    my $action = prompt("Action?", menu => \%LABELS);
+    my $action ='_view';
+    do{
+        # View Files
+        if($action eq '_view') {
+            gcr_view_commit($commit);
+        }
+        elsif($action eq '_file') {
+            gcr_view_commit_files($commit);
+        }
+        # Choose next action.
+        $action = prompt("Action?", menu => \%LABELS);
+    } until $action !~ /^_/;
 
     output({color=>'cyan'}, "We are going to $action $commit->{base}");
     $ACTIONS{$action}->($commit);
