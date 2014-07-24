@@ -279,17 +279,17 @@ sub gcr_reset {
     $type ||= 'audit';
     my $repo = gcr_repo($type);
     # Stash any local changes, and pull master
-    output({color=>'magenta'},"+ [$type] Reseting to origin:master, any changes will be stashed.");
+    verbose({color=>'magenta'},"+ [$type] Reseting to origin:master, any changes will be stashed.");
     my $origin = gcr_origin($type);
     if(defined $origin) {
-        verbose("= Found origin, checking working tree status.");
+        verbose({level=>2},"= Found origin, checking working tree status.");
         my @dirty = $repo->run(qw{status -s});
         if( @dirty ) {
-            output({color=>'yellow'},"! Audit working tree is dirty, stashing files");
+            verbose({color=>'yellow'},"! Audit working tree is dirty, stashing files");
             $repo->run($type eq 'audit' ? qw{stash -u} : qw(reset --hard));
         }
         if( $type eq 'audit' ) {
-            verbose({color=>'cyan'},"= Swithcing to master branch.");
+            verbose({level=>2,color=>'cyan'},"= Swithcing to master branch.");
             eval {
                 $repo->run(qw(checkout master));
             };
@@ -301,7 +301,7 @@ sub gcr_reset {
                 debug({color=>'red'}, "!! $err");
             }
         }
-        verbose({color=>'cyan'},"+ Initiating pull from $origin");
+        verbose({level=>2color=>'cyan'},"+ Initiating pull from $origin");
         local *STDERR = *STDOUT;
         my @output = $repo->run(
             $type eq 'audit' ? qw(pull origin master) : 'pull'
