@@ -301,7 +301,7 @@ sub gcr_reset {
                 debug({color=>'red'}, "!! $err");
             }
         }
-        verbose({level=>2color=>'cyan'},"+ Initiating pull from $origin");
+        verbose({level=>2,color=>'cyan'},"+ Initiating pull from $origin");
         local *STDERR = *STDOUT;
         my @output = $repo->run(
             $type eq 'audit' ? qw(pull origin master) : 'pull'
