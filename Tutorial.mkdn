@@ -4,7 +4,7 @@ Git::Code::Review::Tutorial - How to work Git::Code::Review
 
 # VERSION
 
-version 0.7
+version 0.8
 
 # MOTIVATION
 
@@ -108,11 +108,12 @@ editor is tracked, and when you exit the editor, you will be prompted for the ac
         1. (View) A file mentioned in the commit.
         2. (View) Commit again.
         3. [Approve] this commit.
-        4. Raise a [concern] with this commit.
-        5. [Resign] from this commit.
-        6. Skip (just exits unlocking the commit.)
+        4. [Move] this commit to another profile.
+        5. Raise a [concern] with this commit.
+        6. [Resign] from this commit.
+        7. Skip (just exits unlocking the commit.)
 
-    Selection (1-6):
+    Selection (1-7):
 
 Pick also supports options to affect which commits to pick.  You can use the profile option to select commits in a particular
 profile.  The 'default' profile is used otherwise:
@@ -127,9 +128,9 @@ reviewing code at the same time.  Not wanting to lock you into our madness, you 
 - __desc__ - By date descending
 - __random__ - The default, pick a random commit
 
-To specify you'd like the earliest available commit, use:
+    To specify you'd like the earliest available commit, use:
 
-    $ git-code-review pick --order asc
+        $ git-code-review pick --order asc
 
 ### Approval
 
@@ -218,6 +219,12 @@ You will then see that reflected in your list, while other reviewers will see th
     -[ Profile : default:7 team_a:0 ]-
     -[ Source  : https://github.com/reyjrar/Git-Code-Review.git ]-
 
+### Move
+
+If you have more than 1 profile enabled, reviewers have the ability to move commits from one profile to another.  This
+may happen if path matches overlap or if multiple teams work on code.  If you know no one else in your team will be able
+to review the commit, use the 'move' command instead of the 'resign' command.
+
 ### Skip
 
 You can use the skip command to free your lock on that commit.  The lock/skip process is logged, but will allow you to free
@@ -234,3 +241,15 @@ This software is Copyright (c) 2014 by Brad Lhotsky.
 This is free software, licensed under:
 
     The (three-clause) BSD License
+
+# POD ERRORS
+
+Hey! __The above document had some coding errors, which are explained below:__
+
+- Around line 131:
+
+    '=item' outside of any '=over'
+
+- Around line 141:
+
+    You forgot a '=back' before '=head3'
