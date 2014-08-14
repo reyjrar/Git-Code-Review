@@ -108,11 +108,12 @@ editor is tracked, and when you exit the editor, you will be prompted for the ac
         1. (View) A file mentioned in the commit.
         2. (View) Commit again.
         3. [Approve] this commit.
-        4. Raise a [concern] with this commit.
-        5. [Resign] from this commit.
-        6. Skip (just exits unlocking the commit.)
+        4. [Move] this commit to another profile.
+        5. Raise a [concern] with this commit.
+        6. [Resign] from this commit.
+        7. Skip (just exits unlocking the commit.)
 
-    Selection (1-6):
+    Selection (1-7):
 
 Pick also supports options to affect which commits to pick.  You can use the profile option to select commits in a particular
 profile.  The 'default' profile is used otherwise:
@@ -219,6 +220,12 @@ You will then see that reflected in your list, while other reviewers will see th
     -[ Status approved:1, concerns:1, resigned:1, review:4 ]-
     -[ Profile : default:7 team_a:0 ]-
     -[ Source  : https://github.com/reyjrar/Git-Code-Review.git ]-
+
+=head3 Move
+
+If you have more than 1 profile enabled, reviewers have the ability to move commits from one profile to another.  This
+may happen if path matches overlap or if multiple teams work on code.  If you know no one else in your team will be able
+to review the commit, use the 'move' command instead of the 'resign' command.
 
 =head3 Skip
 

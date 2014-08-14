@@ -34,6 +34,7 @@ use Sub::Exporter -setup => {
         gcr_open_editor
         gcr_view_commit
         gcr_view_commit_files
+        gcr_change_profile
         gcr_change_state
         gcr_not_resigned
         gcr_not_authored
@@ -478,6 +479,78 @@ sub gcr_view_commit_files {
 }
 
 
+=func gcr_change_profile($commit_info,$profile,$details)
+
+$commit_info is a hash attained from gcr_commit_info()
+$profile is a string representing the desired profile
+$details can be either a string, the commit message, or a hash reference
+including a 'message' item to become the commit message.  The rest of the keys
+will be added to the YAML generated.
+
+=cut
+
+sub gcr_change_profile {
+    my($commit,$profile,$info) = @_;
+    my $audit = gcr_repo();
+    debug("gcr_change_profile('$commit->{sha1}','$profile')");
+
+    if(!ref $info) {
+        my %tmp;
+        $tmp{message} = $info;
+        $info = \%tmp;
+    }
+
+    # Already in profile
+    if ($commit->{profile} eq $profile) {
+        debug("! $commit->{sha1} is already in profile $profile, noop");
+        return;
+    }
+
+    # Validate Profile
+    my %profiles = gcr_profiles();
+    if(!exists $profiles{$profile}) {
+        output({stderr=>1,color=>"red"}, "Profile '$profile' doesn't exist. (Available: " . join(', ', sort keys %profiles));
+        exit 1;
+    }
+
+    # To / From
+    my $orig = $commit->{current_path};
+    my $prev = $commit->{profile};
+
+    # Build directories
+    my @path = File::Spec->splitdir($commit->{review_path});
+    my $file = pop @path;
+    splice @path, 0, 1, $profile;
+    gcr_mkdir(@path);
+
+    # Moves require that we keep the same base name
+    push @path, $commit->{base} unless $path[-1] eq $commit->{base};
+    my $target = File::Spec->catfile(@path);
+
+    pop @path;  # Remove the filename from the path
+    gcr_mkdir(@path);
+    if( $orig ne $target ) {
+        verbose("+ Moving from $orig to $target : $info->{message}");
+        debug($audit->run('mv', $orig, $target));
+        my %details = (
+            status => 'move',
+            profile_previous => $prev,
+            profile => $profile,
+            %$info
+        );
+        my $message = gcr_commit_message($commit,\%details);
+        $audit->run('commit', '-m', $message);
+        gcr_push();
+    }
+    else {
+        debug("gcr_change_profile() already at $target");
+    }
+
+    $commit->{profile} = $profile;
+    $commit->{current_path} = $target;
+}
+
+
 =func gcr_change_state($commit_info,$state,$details)
 
 $commit_info is a hash attained from gcr_commit_info()
@@ -550,6 +623,7 @@ sub gcr_change_state {
     $commit->{state} = $state;
     $commit->{current_path} = $target;
 }
+
 
 =func gcr_commit_message($commit_info,\%details)
 

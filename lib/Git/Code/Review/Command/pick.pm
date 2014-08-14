@@ -16,6 +16,7 @@ my %LABELS = (
     approve  => "[Approve] this commit.",
     concerns => "Raise a [concern] with this commit.",
     resign   => "[Resign] from this commit.",
+    move     => "[Move] this commit to another profile.",
     skip     => "Skip (just exits unlocking the commit.)",
     _view    => "(View) Commit again.",
     _file    => "(View) A file mentioned in the commit.",
@@ -24,6 +25,7 @@ my %ACTIONS = (
     approve  => \&approve,
     concerns => \&concerns,
     resign   => \&resign,
+    move     => \&move,
     skip     => \&skip,
 );
 my @_incomplete;
@@ -118,6 +120,11 @@ sub execute {
     # Move to the locked state
     gcr_change_state($commit,'locked', 'Locked.');
 
+    # Only show "move" unless we have > 1 profile
+    my %profiles = gcr_profiles();
+    my $profiles = scalar(keys %profiles);
+    delete $LABELS{move} unless $profiles > 1;
+
     # Show the Commit
     my $action ='_view';
     do{
@@ -209,6 +216,17 @@ sub concerns {
             details => $details,
         },
     });
+}
+
+sub move {
+    my ($commit) = @_;
+    verbose("+ Moving $commit->{base}");
+
+    my %profiles = gcr_profiles();
+    my $to = prompt("Which profile are you moving this commit to?", menu => [sort keys %profiles]);
+    my $details = prompt("Why are you moving this to $to: ", validate => { "Really, not even 10 characters? " => sub { length $_ > 10; } });
+
+    gcr_change_profile($commit,$to,$details);
 }
 
 1;
