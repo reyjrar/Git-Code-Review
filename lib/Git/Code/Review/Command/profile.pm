@@ -148,7 +148,7 @@ sub _default_file {
             '  Valid options are path and author, globbing allowed.',
             '---',
             'path:',
-            '  - **',
+            q{  - '**'},
         ],
         'notification.config' => [
             "; Notification Configuration for $profile",
