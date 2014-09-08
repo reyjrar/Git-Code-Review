@@ -13,7 +13,7 @@ use File::Basename;
 use File::Spec;
 use File::Temp qw(tempfile);
 use Getopt::Long qw(:config pass_through);
-use Git::Repository;
+use Git::Repository qw( Log );
 use Hash::Merge;
 use POSIX qw(strftime);
 use YAML;
@@ -608,8 +608,11 @@ sub gcr_change_state {
         verbose("+ Moving from $orig to $target : $info->{message}");
         debug($audit->run('mv', $orig, $target));
         my %details = (
+            profile        => gcr_profile(),
+            commit         => $commit->{sha1},
+            commit_date    => $commit->{date},
             state_previous => $prev,
-            state => $state,
+            state          => $state,
             %$info
         );
         my $message = gcr_commit_message($commit,\%details);

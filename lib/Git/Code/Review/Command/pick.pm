@@ -118,7 +118,7 @@ sub execute {
 
     }
     # Move to the locked state
-    gcr_change_state($commit,'locked', 'Locked.');
+    gcr_change_state($commit,'locked', { skip => 'true', message => 'Locked.' });
 
     # Only show "move" unless we have > 1 profile
     my %profiles = gcr_profiles();
