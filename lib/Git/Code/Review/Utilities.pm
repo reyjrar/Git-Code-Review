@@ -727,7 +727,7 @@ sub _get_commit_date {
     my $base = basename($current_path);
     my $path = File::Spec->catfile($AUDITDIR,$current_path);
     die "get_review_path(): nothing here $path" unless -f $path;
-    debug("Reading file $path for review_path.");
+
     open(my $fh, "<", $path) or die "_get_commit_date() cannot open $path: $!";
     my $ISO=undef;
     while( !$ISO ) {
@@ -750,7 +750,7 @@ sub _get_author {
 
     my $path = File::Spec->catfile($AUDITDIR,$current_path);
     die "get_author_email(): nothing here $path" unless -f $path;
-    debug("Reading file $path for review_path.");
+
     open(my $fh, "<", $path) or die "_get_author() cannot open $path: $!";
     my $author;
     while( !$author ) {
