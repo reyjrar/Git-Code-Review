@@ -19,8 +19,6 @@ sub opt_spec {
     return (
         ['since|s:s',   "Commit start date, none if not specified", {default => $START}],
         ['until|u:s',   "Commit end date, none if not specified",   {default => $END}],
-        ['include-meta', "Include meta actions which are normally not displayed" ],
-        ['send-report', "Perform Remote Notifications" ],
     );
 }
 
@@ -41,55 +39,60 @@ sub execute {
     debug_var($opt);
 
     my $audit = gcr_repo();
-    #gcr_reset();
+    gcr_reset();
 
     # Grab Commit Status
-    my @list = grep /\.patch$/, $audit->run('ls-files');
+    my @list = map { $_=gcr_commit_info($_) } grep /\.patch$/, $audit->run('ls-files');
     my %commits = ();
+    my %overall = ();
     if( @list ) {
-        my @commits  = grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} } map { $_=gcr_commit_info( basename $_ ) } @list;
         # Assemble Commits
-        foreach my $commit ( sort { $a->{date} cmp $b->{date} } @commits ) {
-            $commits{$commit->{state}} ||= {};
-            $commits{$commit->{state}}->{$commit->{profile}} ||= 0;
-            $commits{$commit->{state}}->{$commit->{profile}}++;
+        foreach my $commit ( sort { $a->{date} cmp $b->{date} } @list ) {
+            my $profile = exists $commit->{profile} ? $commit->{profile} : undef;
+            # Skip commits without profile
+            next unless $profile;
+            # Skip commits which are locked
+            next if $profile eq 'Locked';
+
+            $overall{$profile} ||= {};
+            $overall{$profile}->{$commit->{state}} ||= 0;
+            $overall{$profile}->{$commit->{state}}++;
+
+            # Commits In Scope Check
+            next if $commit->{date} lt $opt->{since};
+            last if $commit->{date} gt $opt->{until};
+
+            # Commit State Tracking
+            $commits{$profile} ||= {};
+            $commits{$profile}->{$commit->{state}} ||= 0;
+            $commits{$profile}->{$commit->{state}}++;
         }
     }
     debug({color=>'magenta'}, "Commit Status");
     debug_var(\%commits);
+
+    debug({color=>'green'}, "Overall Status");
+    debug_var(\%overall);
 
     # Grab Activity on the Repositories
     my $logs = $audit->log('--since', $opt->{since}, '--until', $opt->{until});
     my %activity = ();
     my %concerns = ();
     while(my $log = $logs->next) {
-        my $content  = undef;
-        my $freetext ='';
-        foreach my $line ( split /\r?\n/, $log->message ) {
-            if(!defined $content && $line eq '---') {
-                $content = '';
-            }
-            elsif(defined $content) {
-                $content .= "$line\n";
-            }
-            else {
-                $freetext .= "$line\n";
-            }
-        }
-        my $data = undef;
-        eval {
-            $data = YAML::Load($content);
-        };
-        if(!defined $data || !keys %{ $data }) {
-            verbose({color=>'red'}, "Invalid YAML in Log Entry for ".$log->commit);
-            debug({indent=>1}, split /\r?\n/, $content);
-            next;
-        }
+        #debug({indent=>1,color=>'cyan'}, sprintf "+ Evaluating activity log: %s", $log->commit);
+        # Details
+        my $data = gcr_audit_record($log->message);
 
         # Skip some states
-        next if exists $data->{skip} && !$opt->{include_meta};
+        next if exists $data->{skip};
+
+        # Get the SHA1
+        my $sha1 = gcr_audit_commit($log->commit);
 
         # Profile Specific Details
+        $data->{profile} ||= defined $sha1 ? gcr_commit_profile($sha1) : undef;
+        next unless defined $data->{profile};
+
         if( exists $data->{profile} ) {
             if( exists $data->{state} ) {
                 $activity{$data->{profile}} ||= {};
@@ -106,18 +109,35 @@ sub execute {
 
             # Catch concerns
             if( $data->{state} eq 'concerns' ) {
-                my @commits = map { s/\.patch//; basename($_) }
-                                grep { /\.patch$/ }
-                                    $audit->run(qw(diff-tree --no-commit-id --name-only -r), $log->commit);
-                foreach my $sha1 (@commits) {
-                    if(!exists $concerns{$sha1}) {
-                        my $commit = gcr_commit_info($sha1);
-                        $concerns{$sha1} = {
+                if(!exists $concerns{$sha1}) {
+                    my $commit = gcr_commit_info($sha1);
+                    $concerns{$sha1} = {
+                        concern => {
+                            date => strftime('%F',localtime($log->author_localtime)),
+                            explanation => $data->{message},
+                            reason => $data->{reason},
+                            by => $data->{reviewer},
+                        },
+                        commit => {
                             state => $commit->{state},
                             date  => $commit->{date},
+                            by => $data->{author},
+                        },
+                    };
+                    foreach my $s (qw(comment approved)) {
+                        my @results = $audit->log(qw(-F --grep), $s, '--', '**' . $sha1 . '.patch');
+                        foreach my $r (@results) {
+                            $concerns{$sha1}->{log} ||= [];
+                            my $d = gcr_audit_record($r->message);
+                            push @{$concerns{$sha1}->{log}}, {
+                                state  => $s,
+                                reason => $d->{reason},
+                                date   => strftime('%F',localtime($r->author_localtime)),
+                                by     => $d->{reviewer},
+                                explanation => $d->{message},
+                            }
                         }
                     }
-
                 }
             }
         }
@@ -127,6 +147,14 @@ sub execute {
 
     debug({color=>'red'}, "Concerns raised:");
     debug_var(\%concerns);
+
+    Git::Code::Review::Notify::notify(report => {
+        options => $opt,
+        commits  => \%commits,
+        overall  => \%overall,
+        activity => \%activity,
+        concerns => \%concerns,
+    });
 }
 
 1;

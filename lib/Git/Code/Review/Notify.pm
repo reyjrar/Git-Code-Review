@@ -206,6 +206,87 @@ my %_DEFAULTS = (
           * [% commit.sha1 %]    [% commit.date %]    [% commit.author %]
         [% END -%]
     },
+    report => q{
+        [% USE format -%]
+        [% USE td         = format('%9s |') -%]
+        [% USE th         = format('| %12s |') -%]
+        [% SET states     = [ 'approved', 'concerns', 'review' ] -%]
+        [% SET activities = [ 'approved', 'concerns', 'review', 'select' ] -%]
+
+        Audit Activity [% options.since %] through [% options.until %]
+        ------------------------------------------------------------------------
+
+        [% IF activity.keys.size > 0 -%]
+        [% th('profile') %]
+        [%- FOREACH col IN activities -%]
+            [%- td(col) %]
+        [%- END %]
+        [% FOREACH profile IN activity.keys.sort -%]
+            [%- NEXT IF profile == '_all_' -%]
+            [%- th(profile) %]
+            [%- FOREACH state IN activities -%]
+                [%- td(activity.$profile.exists(state) ? activity.$profile.$state : 0) %]
+            [%- END %]
+        [% END -%]
+        [% ELSE -%]
+            Nothing to report.
+        [% END -%]
+
+        Overall Status of Commits through [% options.until %]
+        ------------------------------------------------------------------------
+
+        [% IF overall.keys.size > 0 -%]
+        [% th('profile') %]
+        [%- FOREACH col IN states -%]
+            [%- td(col) %]
+        [%- END %]
+        [% FOREACH profile IN overall.keys.sort -%]
+            [%- NEXT IF profile.length == 0 -%]
+            [%- th(profile) %]
+            [%- FOREACH state IN states -%]
+                [%- td(overall.$profile.exists(state) ? overall.$profile.$state : 0) %]
+            [%- END %]
+        [% END -%]
+        [% ELSE -%]
+            Nothing to report.
+        [% END -%]
+
+        Commit Status [% options.since %] through [% options.until %]
+        ------------------------------------------------------------------------
+
+        [% IF commits.keys.size > 0 -%]
+        [% th('profile') %]
+        [%- FOREACH col IN states -%]
+            [%- td(col) %]
+        [%- END %]
+        [% FOREACH profile IN commits.keys.sort -%]
+            [%- NEXT IF profile.length == 0 -%]
+            [%- th(profile) %]
+            [%- FOREACH state IN states -%]
+                [%- td(commits.$profile.exists(state) ? commits.$profile.$state : 0) %]
+            [%- END %]
+        [% END -%]
+        [% ELSE -%]
+            Nothing to report.
+        [% END -%]
+
+        [% IF concerns.keys.size > 0 -%]
+        (x) Concerns raised [% options.since %] through [% options.until %]
+        [% FOREACH sha1 IN concerns.keys.sort -%]
+            [%- SET icon = concerns.$sha1.commit.state == 'approved' ? '(/)' : '(x)' -%]
+
+            [% icon %] [% sha1 %] is now [% concerns.$sha1.commit.state %] authored by [% concerns.$sha1.commit.by %] on [% concerns.$sha1.commit.date %]
+                [% concerns.$sha1.concern.date %] raised for [% concerns.$sha1.concern.reason %] by [% concerns.$sha1.concern.by %]
+        [% IF concerns.$sha1.exists('log') -%]
+        [% FOREACH log IN concerns.$sha1.log -%]
+                [% log.date %] [% log.state %] by [% log.by %] [% IF log.exists('reason') -%] for reason '[% log.reason %]'[% END %]
+        [% END -%]
+        [% END -%]
+        [% END -%]
+        [% ELSE -%]
+        (/) No concerns raised between [% options.since %] and [% options.until %].
+        [% END -%]
+    },
 );
 
 sub _install_templates {

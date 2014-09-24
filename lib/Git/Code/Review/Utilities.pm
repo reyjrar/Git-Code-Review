@@ -41,6 +41,9 @@ use Sub::Exporter -setup => {
         gcr_commit_exists
         gcr_commit_info
         gcr_commit_message
+        gcr_commit_profile
+        gcr_audit_commit
+        gcr_audit_record
         gcr_state_color
     )],
 };
@@ -375,7 +378,7 @@ sub gcr_commit_info {
 
     my @matches = $audit->run('ls-files', "*$object*");
     if( @matches != 1 ) {
-        die sprintf('%s commit object: %s from %s line %d', (@matches > 1 ? 'ambiguous' : 'unknown'), $object, $_sub, $_line);
+        die sprintf('gcr_commit_info("%s") %s commit object: %s line %d', $object, (@matches > 1 ? 'ambiguous' : 'unknown'), $_sub, $_line);
     }
     my %commit = (
         base         => basename($matches[0]),
@@ -385,7 +388,7 @@ sub gcr_commit_info {
         review_time  => 'na',
         state        => _get_state($matches[0]),
         author       => _get_author($matches[0]),
-        profile      => (File::Spec->splitdir($matches[0]))[0],
+        profile      => _get_commit_profile($matches[0]),
         reviewer     => $CFG{user},
         source_repo  => gcr_origin('source'),
         audit_repo   => gcr_origin('audit'),
@@ -393,6 +396,28 @@ sub gcr_commit_info {
     );
 
     return wantarray ? %commit : \%commit;
+}
+
+=func gcr_commit_profile(sha1)
+
+Find and return the profile for the commit.
+
+=cut
+sub gcr_commit_profile {
+    my ($object) = @_;
+    my ($_line,$_sub) = (caller 1)[2,3];
+
+    die "Invalid call to gcr_commit_profile() from  $_sub at $_line" unless $object;
+
+    my $audit = gcr_repo();
+    # Object can be a sha1, path in the repo, or patch
+    my @matches = $audit->run('ls-files', "*$object*");
+    if( @matches != 1 ) {
+        verbose({color=>'yellow',indent=>1}, sprintf 'gcr_commit_profile("%s") %s commit object from %s line %d', $object, (@matches > 1 ? 'ambiguous' : 'unknown'), $_sub, $_line);
+        return;
+    }
+
+    return _get_commit_profile($matches[0]);
 }
 
 =func gcr_open_editor( mode => file )
@@ -651,6 +676,73 @@ sub gcr_commit_message {
     $message .= Dump({ %details, %{$info} });
     return $message;
 }
+
+=func gcr_audit_commit($AuditSHA1)
+
+Returns the SHA1 from the source repository given the SHA1 from the
+the Audit Repository.
+
+=cut
+sub gcr_audit_commit {
+    my($audit_sha1) = @_;
+    my $audit = gcr_repo();
+    my ($_line,$_sub) = (caller 1)[2,3];
+
+    # Get a list of files in the commit that end in .patch
+    my %c = map { $_ => 1 }
+            map { s/\.patch//; basename($_) }
+            grep { /\.patch$/ }
+                $audit->run(qw(diff-tree --no-commit-id --name-only -r), $audit_sha1);
+
+    my @commits = keys %c;
+    if(@commits != 1) {
+        verbose({color=>'red',indent=>1}, sprintf "gcr_audit_commit('%s') contains %d source commits (%s - line %d)\n", $audit_sha1, scalar(@commits), $_sub, $_line );
+        return;
+    }
+
+    return $commits[0];
+}
+
+=func gcr_audit_record(@lines)
+
+Converts a GCR Message into the structure:
+{
+    message => 'FreeText',
+    date => 'blah',
+    author => 'blah',
+}
+=cut
+sub gcr_audit_record {
+    my (@lines) = @_;
+    my %details = ();
+    my $yaml_raw = undef;
+    foreach my $line (map { split /\r?\n/, $_ } @lines) {
+        if(!defined $yaml_raw && $line eq '---')  {
+            $yaml_raw = '';
+        }
+        elsif(defined $yaml_raw) {
+            $yaml_raw .= "$line\n";
+        }
+        else {
+            $details{message} ||= '';
+            $details{message} .= "$line\n";
+        }
+    }
+    if(defined $yaml_raw) {
+        my $d = undef;
+        eval {
+            $d = YAML::Load($yaml_raw);
+        };
+        if($@) {
+            debug({color=>'red',stderr=>1}, "Error retrieving YAML details from:", $yaml_raw);
+        }
+        if(ref $d eq 'HASH') {
+            map { $details{$_} = $d->{$_} } grep { $_ ne 'message' } keys %{ $d };
+        }
+    }
+    return wantarray ? %details : { %details };
+}
+
 =func gcr_not_resigned($commit)
 
 Returns true unless the author resigned from the commit.
@@ -739,6 +831,17 @@ sub _get_commit_date {
     return $ISO;
 }
 
+=func _get_commit_profile($path)
+
+Return the profile name
+
+=cut
+sub _get_commit_profile {
+    my ($path) = @_;
+
+    my $part = (File::Spec->splitdir($path))[0];
+    return $part eq 'Locked' ? undef : $part;
+}
 
 =func _get_author($path)
 
