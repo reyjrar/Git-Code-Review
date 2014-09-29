@@ -209,13 +209,11 @@ my %_DEFAULTS = (
     report => q{
         [% USE format -%]
         [% USE td         = format('%9s |') -%]
-        [% USE th         = format('| %12s |') -%]
+        [% USE th         = format('|| %12s |') -%]
         [% SET states     = [ 'approved', 'concerns', 'review' ] -%]
         [% SET activities = [ 'approved', 'concerns', 'review', 'select' ] -%]
-
         Audit Activity [% options.since %] through [% options.until %]
-        ------------------------------------------------------------------------
-
+        ----
         [% IF activity.keys.size > 0 -%]
         [% th('profile') %]
         [%- FOREACH col IN activities -%]
@@ -229,12 +227,12 @@ my %_DEFAULTS = (
             [%- END %]
         [% END -%]
         [% ELSE -%]
-            Nothing to report.
+            (i) Nothing to report.
         [% END -%]
 
-        Overall Status of Commits through [% options.until %]
-        ------------------------------------------------------------------------
 
+        Overall Status of Commits through [% options.until %]
+        ----
         [% IF overall.keys.size > 0 -%]
         [% th('profile') %]
         [%- FOREACH col IN states -%]
@@ -248,12 +246,12 @@ my %_DEFAULTS = (
             [%- END %]
         [% END -%]
         [% ELSE -%]
-            Nothing to report.
+            (i) Nothing to report.
         [% END -%]
 
-        Commit Status [% options.since %] through [% options.until %]
-        ------------------------------------------------------------------------
 
+        Commit Status [% options.since %] through [% options.until %]
+        ----
         [% IF commits.keys.size > 0 -%]
         [% th('profile') %]
         [%- FOREACH col IN states -%]
@@ -267,24 +265,27 @@ my %_DEFAULTS = (
             [%- END %]
         [% END -%]
         [% ELSE -%]
-            Nothing to report.
+            (i) Nothing to report.
         [% END -%]
 
+
+        Concerns raised [% options.since %] through [% options.until %]
+        ----
         [% IF concerns.keys.size > 0 -%]
-        (x) Concerns raised [% options.since %] through [% options.until %]
         [% FOREACH sha1 IN concerns.keys.sort -%]
             [%- SET icon = concerns.$sha1.commit.state == 'approved' ? '(/)' : '(x)' -%]
 
-            [% icon %] [% sha1 %] is now [% concerns.$sha1.commit.state %] authored by [% concerns.$sha1.commit.by %] on [% concerns.$sha1.commit.date %]
-                [% concerns.$sha1.concern.date %] raised for [% concerns.$sha1.concern.reason %] by [% concerns.$sha1.concern.by %]
+            [% icon %] [% sha1 %] is now *[% concerns.$sha1.commit.state %]*
+            * [% concerns.$sha1.commit.date %] authored by [% concerns.$sha1.commit.by %]
+            * [% concerns.$sha1.concern.date %] raised for *[% concerns.$sha1.concern.reason %]* by [% concerns.$sha1.concern.by %]
         [% IF concerns.$sha1.exists('log') -%]
         [% FOREACH log IN concerns.$sha1.log -%]
-                [% log.date %] [% log.state %] by [% log.by %] [% IF log.exists('reason') -%] for reason '[% log.reason %]'[% END %]
+            * [% log.date %] [% log.state %] by [% log.by %] [% IF log.exists('reason') -%] for reason *[% log.reason %]*[% END %]
         [% END -%]
         [% END -%]
         [% END -%]
         [% ELSE -%]
-        (/) No concerns raised between [% options.since %] and [% options.until %].
+            (/) No concerns raised.
         [% END -%]
     },
 );
