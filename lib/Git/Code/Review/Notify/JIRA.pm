@@ -9,6 +9,7 @@ use Config::Auto;
 use File::Spec;
 use Git::Code::Review::Utilities qw(:all);
 use JIRA::Client;
+use POSIX qw(strftime);
 use Sys::Hostname qw(hostname);
 
 sub send {
@@ -57,6 +58,17 @@ sub send {
     }
 
     # Determine the Year to use for the parent ticket
+    my $jira_client = JIRA::Client->new($config{'jira-url'}, $credentials->{user}, $credentials->{password}) or die "Cannot create JIRA client: $@";
+
+    my %STATUS_ID_NAME = ();
+    my %STATUS_NAME_ID = ();
+    foreach my $s (values %{ $jira_client->get_statuses}) {
+        $STATUS_ID_NAME{$s->{id}} = $s->{name};
+        $STATUS_NAME_ID{$s->{name}} = $s->{id};
+    }
+    debug({color=>'cyan'}, '-[ JIRA Status Map ]-');
+    debug_var(\%STATUS_ID_NAME);
+
 
 }
 
