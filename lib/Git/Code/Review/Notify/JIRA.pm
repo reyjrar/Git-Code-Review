@@ -29,6 +29,9 @@ sub send {
         );
         return;
     }
+    if( exists $config{profile} && $config{profile} ne 'all' && exists $config{'jira-title'}) {
+        $config{'jira-title'} = join(' : ', @config{qw(jira-title profile)});
+    }
 
     # Need valid JIRA properties
     if( !-f $config{'jira-credential-file'} ) {
@@ -55,6 +58,15 @@ sub send {
             verbose({color=>'red'}, "Notify/JIRA - Unable to find the '$key' in $config{'jira-credential-file'}.");
             return;
         }
+    }
+
+
+    # Ticket Creation
+    verbose({color=>'green'}, "JIRA Parent Ticket: $config{'jira-title'}");
+    # Should we do the thing?
+    if( exists $ENV{GCR_NOTIFY_JIRA_DISABLED} && $ENV{GCR_NOTIFY_JIRA_DISABLED} ){
+        output({color=>'cyan',sticky=>1}, "JIRA methods disabled by environment variable, GCR_NOTIFY_JIRA_DISABLED.");
+        return;
     }
 
     # Determine the Year to use for the parent ticket

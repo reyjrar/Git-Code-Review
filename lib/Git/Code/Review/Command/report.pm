@@ -19,6 +19,7 @@ sub opt_spec {
     return (
         ['since|s:s',   "Commit start date, none if not specified", {default => $START}],
         ['until|u:s',   "Commit end date, none if not specified",   {default => $END}],
+        ['all',         "Ignore profile settings, generate report for all profiles." ],
     );
 }
 
@@ -38,11 +39,16 @@ sub execute {
     debug("OPTIONS");
     debug_var($opt);
 
-    my $audit = gcr_repo();
     gcr_reset();
+    my $profile = gcr_profile();
+    my $audit   = gcr_repo();
+
+    # Handle Profile Specific Files
+    my @ls = ('ls-files');
+    push @ls, $profile unless $opt->{all};
 
     # Grab Commit Status
-    my @list = map { $_=gcr_commit_info($_) } grep /\.patch$/, $audit->run('ls-files');
+    my @list = map { $_=gcr_commit_info($_) } grep /\.patch$/, $audit->run(@ls);
     my %commits = ();
     my %overall = ();
     if( @list ) {
@@ -92,12 +98,19 @@ sub execute {
         # Profile Specific Details
         $data->{profile} ||= defined $sha1 ? gcr_commit_profile($sha1) : undef;
         next unless defined $data->{profile};
+        next if !$opt->{all} && $data->{profile} ne $profile;
+
+        my $increment = 1;
+        if($data->{state} eq 'select') {
+            my @files = gcr_audit_files($log->commit);
+            $increment = @files;
+        }
 
         if( exists $data->{profile} ) {
             if( exists $data->{state} ) {
                 $activity{$data->{profile}} ||= {};
                 $activity{$data->{profile}}->{$data->{state}} ||= 0;
-                $activity{$data->{profile}}->{$data->{state}}++;
+                $activity{$data->{profile}}->{$data->{state}} += $increment;
             }
         }
 
@@ -105,7 +118,7 @@ sub execute {
         if(exists $data->{state}) {
             $activity{_all_} ||= {};
             $activity{_all_}->{$data->{state}} ||= 0;
-            $activity{_all_}->{$data->{state}}++;
+            $activity{_all_}->{$data->{state}} += $increment;
 
             # Catch concerns
             if( $data->{state} eq 'concerns' ) {
@@ -148,12 +161,20 @@ sub execute {
     debug({color=>'red'}, "Concerns raised:");
     debug_var(\%concerns);
 
+    output({color=>'cyan'},
+        '=*'x40,
+        sprintf('Git::Code::Review Report for %s through %s', $opt->{since}, $opt->{until}),
+        '=*'x40,
+        '',
+    );
+
     Git::Code::Review::Notify::notify(report => {
         options => $opt,
         commits  => \%commits,
         overall  => \%overall,
         activity => \%activity,
         concerns => \%concerns,
+        profile  => $opt->{all} ? 'all' : $profile,
     });
 }
 
