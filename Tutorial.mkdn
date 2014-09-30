@@ -4,7 +4,7 @@ Git::Code::Review::Tutorial - How to work Git::Code::Review
 
 # VERSION
 
-version 0.8
+version 0.9
 
 # MOTIVATION
 
