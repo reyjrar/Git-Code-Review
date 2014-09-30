@@ -80,24 +80,21 @@ sub send {
         else {
             $msg->data($data);
         }
+        # Print out the happy email
+        debug($msg->as_string);
 
         # Messaging
         if( exists $ENV{GCR_NOTIFY_EMAIL_DISABLED} && $ENV{GCR_NOTIFY_EMAIL_DISABLED} ){
-            output({color=>'cyan'}, "Sending of email disable by environment variable, GCR_NOTIFY_EMAIL_DISABLED.");
-            verbose($msg->as_string);
-            verbose({clear=>1,color=>'cyan'}, "Sending of email disable by environment variable, GCR_NOTIFY_EMAIL_DISABLED.");
+            output({color=>'cyan',sticky=>1}, "Sending of email disable by environment variable, GCR_NOTIFY_EMAIL_DISABLED.");
+            return;
         }
-        else {
-            # Print out the happy email
-            debug($msg->as_string);
-            verbose({color=>'cyan'}, "Sending notification email.");
-            my $rc = eval {
-                $msg->send();
-                1;
-            };
-            if($rc == 1) {
-                output({color=>'green'}, "Notification email sent.");
-            }
+        verbose({color=>'cyan'}, "Sending notification email.");
+        my $rc = eval {
+            $msg->send();
+            1;
+        };
+        if($rc == 1) {
+            output({color=>'green'}, "Notification email sent.");
         }
     }
 
