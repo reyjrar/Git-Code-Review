@@ -43,6 +43,7 @@ use Sub::Exporter -setup => {
         gcr_commit_message
         gcr_commit_profile
         gcr_audit_commit
+        gcr_audit_files
         gcr_audit_record
         gcr_state_color
     )],
@@ -702,6 +703,23 @@ sub gcr_audit_commit {
 
     return $commits[0];
 }
+
+=func gcr_audit_files($AuditSHA1)
+
+Returns the list of files modified by the Audit SHA1
+the Audit Repository.
+
+=cut
+sub gcr_audit_files {
+    my($audit_sha1) = @_;
+    my $audit = gcr_repo();
+    my ($_line,$_sub) = (caller 1)[2,3];
+
+    # Get a list of files in the commit that end in .patch
+    my @files = grep { /\.patch$/ } $audit->run(qw(diff-tree --no-commit-id --name-only -r), $audit_sha1);
+    return @files;
+}
+
 
 =func gcr_audit_record(@lines)
 
