@@ -7,6 +7,7 @@ use warnings;
 use CLI::Helpers qw(:all);
 use Config::Auto;
 use File::Spec;
+use File::Temp qw(tempfile);
 use Git::Code::Review::Utilities qw(:all);
 use JIRA::Client;
 use POSIX qw(strftime);
@@ -164,6 +165,27 @@ sub send {
         if(!$exists) {
             verbose({indent=>1}, "[$report] adding comment for $title");
             $jira_client->addComment($report_ticket, join("\n", 'h2. ' . $title, '----', $content));
+        }
+    }
+
+    # Full log as an attachment
+    my %attachments = map { $_ => 1 } @{ $report_ticket->{attachmentNames} };
+    if(!exists $attachments{'history.log'} && exists $config{history}) {
+        # Record in the ticket
+        my ($fh,$filename) = tempfile();
+        $fh->autoflush(1);
+        $fh->unlink_on_destory(1);
+        print $fh join("\n\n", @{ $config{history}});
+
+        seek($fh,0,0);
+        eval {
+            $jira_client->attach_files_to_issue($report, { 'history.log' => $fh });
+            close($fh);
+        };
+        my $err = $@;
+        if( $err ) {
+            output({color=>'red',stdout=>1}, "ERROR Attaching file: $err");
+            exit 1;
         }
     }
 }
