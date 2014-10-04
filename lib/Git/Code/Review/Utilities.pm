@@ -667,9 +667,12 @@ it will be used as the YAML header text/comment.
 sub gcr_commit_message {
     my($commit,$info) = @_;
     my %details = ();
+    my %cfg = gcr_config();
     #
     # Grab from Commit Object
-    foreach my $k (qw(author date reviewer review_time)) {
+    my @fields = qw(author date reviewer);
+    push @fields, 'review_time' if exists $cfg{record_time};
+    foreach my $k (@fields) {
         next unless exists $commit->{$k};
         next unless $commit->{$k};
         next if $commit->{$k} eq 'na';
