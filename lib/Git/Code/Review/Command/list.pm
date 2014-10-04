@@ -58,6 +58,7 @@ sub execute {
         foreach my $commit ( sort { $a->{date} cmp $b->{date} } @commits ) {
             $commit->{state} = 'resigned' unless gcr_not_resigned($commit->{base});
             # Profile filter
+            next unless exists $commit->{profile};
             next unless (exists $opt->{all} && $opt->{all}) || $commit->{profile} eq $profile;
 
             # Count them

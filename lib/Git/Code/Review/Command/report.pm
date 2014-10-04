@@ -12,14 +12,15 @@ use Git::Code::Review -command;
 use POSIX qw(strftime);
 use YAML;
 
-my $START = strftime('%F',localtime(time - (86400*7)));
-my $END   = strftime('%F',localtime);
+my $NOW           = strftime('%F', localtime);
+my $THIRTYDAYSAGO = strftime('%F', localtime(time - (86400*30)));
 
 sub opt_spec {
     return (
-        ['since|s:s',   "Commit start date, none if not specified", {default => $START}],
-        ['until|u:s',   "Commit end date, none if not specified",   {default => $END}],
         ['all',         "Ignore profile settings, generate report for all profiles." ],
+        ['history-start:s',  "Date to start history on, default is full history" ],
+        ['concerns-start:s', "Date to start display of commits with conerns in approved state, default is $THIRTYDAYSAGO", {default=>$THIRTYDAYSAGO}],
+        ['at:s',             "Status of the repository at this date, default today", {default => $NOW}],
     );
 }
 
@@ -36,128 +37,151 @@ sub execute {
     my($cmd,$opt,$args) = @_;
 
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
-    debug("OPTIONS");
-    debug_var($opt);
-
     gcr_reset();
-    my $profile = gcr_profile();
+
     my $audit   = gcr_repo();
+    my $profile = gcr_profile();
 
     # Handle Profile Specific Files
     my @ls = ('ls-files');
     push @ls, $profile unless $opt->{all};
 
-    # Grab Commit Status
-    my @list = map { $_=gcr_commit_info($_) } grep /\.patch$/, $audit->run(@ls);
-    my %commits = ();
-    my %overall = ();
-    if( @list ) {
+    my @commits  = ();
+    if( $opt->{at} ne $NOW ) {
+        # Rewind the Repository
+        my @rev = $audit->run('rev-list', '-n', 1, '--before', $opt->{at}, 'master');
+        if(!@rev) {
+            output({color=>'red',stderr=>1}, "No revisions in the repository at $opt->{at}!");
+            exit 1;
+        }
+        debug({color=>'cyan'}, "+ Rewinding history to $opt->{at} with sha1:$rev[0]");
+        $audit->run(checkout => $rev[0]);
+        @commits = map { basename $_ } grep /\.patch$/, $audit->run(@ls);
+        gcr_reset();
+    }
+    else {
+        @commits = map { basename $_ } grep /\.patch$/, $audit->run(@ls);
+    }
+
+    my %commits  = ();
+    my @concerns = ();
+    my %monthly  = ();
+    if( @commits ) {
         # Assemble Commits
-        foreach my $commit ( sort { $a->{date} cmp $b->{date} } @list ) {
+        foreach my $base (@commits) {
+            my $commit;
+            debug("Getting info on $base");
+            eval {
+                $commit = gcr_commit_info($base);
+            };
+            next unless defined $commit;
+            debug({indent=>1,color=>'green'}, "+ Success!");
             my $profile = exists $commit->{profile} ? $commit->{profile} : undef;
             # Skip commits without profile
             next unless $profile;
             # Skip commits which are locked
             next if $profile eq 'Locked';
 
-            $overall{$profile} ||= {};
-            $overall{$profile}->{$commit->{state}} ||= 0;
-            $overall{$profile}->{$commit->{state}}++;
-
-            # Commits In Scope Check
-            next if $commit->{date} lt $opt->{since};
-            last if $commit->{date} gt $opt->{until};
+            # Make sure we care about it
+            next if $opt->{history_start} && $commit->{date} lt $opt->{history_start};
 
             # Commit State Tracking
             $commits{$profile} ||= {};
             $commits{$profile}->{$commit->{state}} ||= 0;
             $commits{$profile}->{$commit->{state}}++;
+
+            # Monthly Tracking
+            my $month = join('-', (split /-/,$commit->{date})[0,1] );
+            my $state = $commit->{state} ne 'approved' ? 'todo' : 'complete';
+
+            $monthly{$month}->{$state} ||= 0;
+            $monthly{$month}->{$state}++;
         }
     }
     debug({color=>'magenta'}, "Commit Status");
     debug_var(\%commits);
 
-    debug({color=>'green'}, "Overall Status");
-    debug_var(\%overall);
-
-    # Grab Activity on the Repositories
-    my $logs = $audit->log('--since', $opt->{since}, '--until', $opt->{until});
-    my %activity = ();
+    # Concerns Information
+    my @details  = ();
     my %concerns = ();
+    my @log_options = qw(--reverse);
+
+    push @log_options, "--since", $opt->{history_start} if exists $opt->{history_start};
+    push @log_options, '--', $profile unless $opt->{all};
+
+    my $logs = $audit->log(@log_options);
     while(my $log = $logs->next) {
-        #debug({indent=>1,color=>'cyan'}, sprintf "+ Evaluating activity log: %s", $log->commit);
         # Details
         my $data = gcr_audit_record($log->message);
 
         # Skip some states
         next if exists $data->{skip};
+        next unless exists $data->{state};
+
+        # Record this commit
+        my @record = (
+            sprintf("commit  %s", $log->commit),
+            sprintf("Author: %s <%s>", $log->author_name, $log->author_email),
+            sprintf("Date:   %s", strftime('%F %T',localtime($log->author_localtime))),
+            '',
+            $log->raw_message,
+        );
+
+        # For selections, add details
+        push @record, '', $audit->run(qw(diff-tree --stat -r), $log->commit)
+            if $data->{state} eq 'select';
+
+        # Add to our details
+        push @details, join("\n", @record);
 
         # Get the SHA1
         my $sha1 = gcr_audit_commit($log->commit);
 
         # Profile Specific Details
-        $data->{profile} ||= defined $sha1 ? gcr_commit_profile($sha1) : undef;
-        next unless defined $data->{profile};
-        next if !$opt->{all} && $data->{profile} ne $profile;
-
-        my $increment = 1;
-        if($data->{state} eq 'select') {
-            my @files = gcr_audit_files($log->commit);
-            $increment = @files;
+        my $commit;
+        if( defined $sha1 ) {
+            $data->{profile} ||= gcr_commit_profile($sha1);
+            eval { $commit = gcr_commit_info($sha1) };
         }
+        # If there's no commit in play, skip this.
+        next unless defined $commit;
 
-        if( exists $data->{profile} ) {
-            if( exists $data->{state} ) {
-                $activity{$data->{profile}} ||= {};
-                $activity{$data->{profile}}->{$data->{state}} ||= 0;
-                $activity{$data->{profile}}->{$data->{state}} += $increment;
+        my $date = strftime('%F',localtime($log->author_localtime));
+
+        # Parse History for Commits with Concerns
+        if( $data->{state} eq 'concerns' ) {
+            $concerns{$sha1} = {
+                concern => {
+                    date        => $date,
+                    explanation => $data->{message},
+                    reason      => $data->{reason},
+                    by          => $data->{reviewer},
+                },
+                commit => {
+                    state => $commit->{state},
+                    date  => $commit->{date},
+                    by    => $data->{author},
+                },
+            };
+        }
+        elsif( $data->{state} eq 'approved' || $data->{state} eq 'comments' ) {
+            next unless exists $concerns{$sha1};
+
+            if ( $data->{state} eq 'approved' && $date le $opt->{concerns_start} ) {
+                delete $concerns{$sha1};
             }
-        }
-
-        # Overview
-        if(exists $data->{state}) {
-            $activity{_all_} ||= {};
-            $activity{_all_}->{$data->{state}} ||= 0;
-            $activity{_all_}->{$data->{state}} += $increment;
-
-            # Catch concerns
-            if( $data->{state} eq 'concerns' ) {
-                if(!exists $concerns{$sha1}) {
-                    my $commit = gcr_commit_info($sha1);
-                    $concerns{$sha1} = {
-                        concern => {
-                            date => strftime('%F',localtime($log->author_localtime)),
-                            explanation => $data->{message},
-                            reason => $data->{reason},
-                            by => $data->{reviewer},
-                        },
-                        commit => {
-                            state => $commit->{state},
-                            date  => $commit->{date},
-                            by => $data->{author},
-                        },
-                    };
-                    foreach my $s (qw(comment approved)) {
-                        my @results = $audit->log(qw(-F --grep), $s, '--', '**' . $sha1 . '.patch');
-                        foreach my $r (@results) {
-                            $concerns{$sha1}->{log} ||= [];
-                            my $d = gcr_audit_record($r->message);
-                            push @{$concerns{$sha1}->{log}}, {
-                                state  => $s,
-                                reason => $d->{reason},
-                                date   => strftime('%F',localtime($r->author_localtime)),
-                                by     => $d->{reviewer},
-                                explanation => $d->{message},
-                            }
-                        }
-                    }
-                }
+            else {
+                $concerns{$sha1}->{log} ||= [];
+                push @{$concerns{$sha1}->{log}}, {
+                    date        => $date,
+                    state       => $data->{state},
+                    reason      => $data->{reason},
+                    by          => $data->{reviewer},
+                    explanation => $data->{message},
+                };
             }
         }
     }
-    debug({color=>'magenta'}, "Activity Overview");
-    debug_var(\%activity);
-
     debug({color=>'red'}, "Concerns raised:");
     debug_var(\%concerns);
 
@@ -169,12 +193,12 @@ sub execute {
     );
 
     Git::Code::Review::Notify::notify(report => {
-        options => $opt,
+        options  => $opt,
         commits  => \%commits,
-        overall  => \%overall,
-        activity => \%activity,
+        monthly  => \%monthly,
         concerns => \%concerns,
         profile  => $opt->{all} ? 'all' : $profile,
+        history  => \@details,
     });
 }
 
