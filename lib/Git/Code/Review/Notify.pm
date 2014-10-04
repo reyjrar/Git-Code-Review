@@ -211,46 +211,9 @@ my %_DEFAULTS = (
         [% USE td         = format('%9s |') -%]
         [% USE th         = format('|| %12s |') -%]
         [% SET states     = [ 'approved', 'concerns', 'review' ] -%]
-        [% SET activities = [ 'approved', 'concerns', 'review', 'select' ] -%]
-        Audit Activity [% options.since %] through [% options.until %]
-        ----
-        [% IF activity.keys.size > 0 -%]
-        [% th('profile') %]
-        [%- FOREACH col IN activities -%]
-            [%- td(col) %]
-        [%- END %]
-        [% FOREACH profile IN activity.keys.sort -%]
-            [%- NEXT IF profile == '_all_' -%]
-            [%- th(profile) %]
-            [%- FOREACH state IN activities -%]
-                [%- td(activity.$profile.exists(state) ? activity.$profile.$state : 0) %]
-            [%- END %]
-        [% END -%]
-        [% ELSE -%]
-            (i) Nothing to report.
-        [% END -%]
+        [% SET simple     = [ 'complete', 'todo' ] -%]
 
-
-        Overall Status of Commits through [% options.until %]
-        ----
-        [% IF overall.keys.size > 0 -%]
-        [% th('profile') %]
-        [%- FOREACH col IN states -%]
-            [%- td(col) %]
-        [%- END %]
-        [% FOREACH profile IN overall.keys.sort -%]
-            [%- NEXT IF profile.length == 0 -%]
-            [%- th(profile) %]
-            [%- FOREACH state IN states -%]
-                [%- td(overall.$profile.exists(state) ? overall.$profile.$state : 0) %]
-            [%- END %]
-        [% END -%]
-        [% ELSE -%]
-            (i) Nothing to report.
-        [% END -%]
-
-
-        Commit Status [% options.since %] through [% options.until %]
+        Commit Status [% options.exists('history_start') ? options.history_start : '' %] through [% options.at %]
         ----
         [% IF commits.keys.size > 0 -%]
         [% th('profile') %]
@@ -269,7 +232,25 @@ my %_DEFAULTS = (
         [% END -%]
 
 
-        Concerns raised [% options.since %] through [% options.until %]
+        History [% options.exists('history_start') ? options.history_start : '' %] through [% options.at %]
+        ----
+        [% IF monthly.keys.size > 0 -%]
+        [% th('state') %]
+        [%- FOREACH month IN monthly.keys.sort -%]
+            [%- td(month) %]
+        [%- END %]
+        [% FOREACH state IN simple -%]
+            [%- th(state) -%]
+            [%- FOREACH month IN monthly.keys.sort -%]
+                [%- td(monthly.$month.exists(state) ? monthly.$month.$state : 0) %]
+            [%- END %]
+        [% END -%]
+        [% ELSE -%]
+            (i) Nothing to report.
+        [% END -%]
+
+
+        Active Concerns
         ----
         [% IF concerns.keys.size > 0 -%]
         [% FOREACH sha1 IN concerns.keys.sort -%]
