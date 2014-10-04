@@ -76,19 +76,9 @@ sub execute {
             };
             next unless defined $commit;
             debug({indent=>1,color=>'green'}, "+ Success!");
-            my $profile = exists $commit->{profile} ? $commit->{profile} : undef;
-            # Skip commits without profile
-            next unless $profile;
-            # Skip commits which are locked
-            next if $profile eq 'Locked';
 
-            # Make sure we care about it
+            # Check Date
             next if $opt->{history_start} && $commit->{date} lt $opt->{history_start};
-
-            # Commit State Tracking
-            $commits{$profile} ||= {};
-            $commits{$profile}->{$commit->{state}} ||= 0;
-            $commits{$profile}->{$commit->{state}}++;
 
             # Monthly Tracking
             my $month = join('-', (split /-/,$commit->{date})[0,1] );
@@ -96,10 +86,19 @@ sub execute {
 
             $monthly{$month}->{$state} ||= 0;
             $monthly{$month}->{$state}++;
+
+            # Check profiles
+            my $profile = exists $commit->{profile} ? $commit->{profile} : undef;
+            next unless $profile;
+            next if $profile eq 'Locked';
+
+            # Commit State Tracking
+            $commits{$profile} ||= {};
+            $commits{$profile}->{$commit->{state}} ||= 0;
+            $commits{$profile}->{$commit->{state}}++;
+
         }
     }
-    debug({color=>'magenta'}, "Commit Status");
-    debug_var(\%commits);
 
     # Concerns Information
     my @details  = ();
@@ -107,12 +106,14 @@ sub execute {
     my @log_options = qw(--reverse);
 
     push @log_options, "--since", $opt->{history_start} if exists $opt->{history_start};
+    push @log_options, "--until", $opt->{at}            if $opt->{at} ne $NOW;
     push @log_options, '--', $profile unless $opt->{all};
 
     my $logs = $audit->log(@log_options);
     while(my $log = $logs->next) {
         # Details
         my $data = gcr_audit_record($log->message);
+        my $date = strftime('%F',localtime($log->author_localtime));
 
         # Skip some states
         next if exists $data->{skip};
@@ -131,8 +132,10 @@ sub execute {
         push @record, '', $audit->run(qw(diff-tree --stat -r), $log->commit)
             if $data->{state} eq 'select';
 
-        # Add to our details
-        push @details, join("\n", @record);
+        if( $opt->{at} eq $NOW || $date le $opt->{at} ) {
+            # Add to our details
+            push @details, join("\n", @record);
+        }
 
         # Get the SHA1
         my $sha1 = gcr_audit_commit($log->commit);
@@ -146,7 +149,11 @@ sub execute {
         # If there's no commit in play, skip this.
         next unless defined $commit;
 
-        my $date = strftime('%F',localtime($log->author_localtime));
+        # We have an audit commit, we might not care about.
+        if( exists $opt->{history_start} && exists $commit->{date} && $commit->{date} lt $opt->{history_start} ) {
+            splice @details, -1, 1;
+        }
+
 
         # Parse History for Commits with Concerns
         if( $data->{state} eq 'concerns' ) {
@@ -182,8 +189,6 @@ sub execute {
             }
         }
     }
-    debug({color=>'red'}, "Concerns raised:");
-    debug_var(\%concerns);
 
     output({color=>'cyan'},
         '=*'x40,
