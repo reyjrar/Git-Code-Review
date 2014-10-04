@@ -154,17 +154,22 @@ Returns a copy of our configuration as a hash or hash ref.
 my %_config = ();
 sub gcr_config {
 
-    $CFG{user} = $GITRC->get(key => 'user.email') unless exists $CFG{user};
-
     my $merge = Hash::Merge->new('STORAGE_PRECEDENT');
     if(!keys %_config) {
         %_config = %CFG;
+
+        my %gitrc = qw(
+            user.email              user
+            code-review.record_time record_time
+        );
+
+        foreach my $k (keys %gitrc) {
+            my $v = $GITRC->get(key => $k);
+            next unless defined $v;
+            $_config{$gitrc{$k}} = $v;
+        }
+
         foreach my $sub (qw(notification)) {
-            # Here be dragons.
-            #no warnings 'redefine';
-            # Going to overload these subroutines for this block to load files correctly.
-            #local *Config::GitLike::global_file = sub { File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config") };
-            #local *Config::GitLike::user_file = sub { File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")  };
             my @files = (
                 File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config"),
                 File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")
