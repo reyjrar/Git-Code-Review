@@ -144,8 +144,8 @@ sub _default_file {
     my ($profile,$file) = @_;
     my %content = (
         'selection.yaml' => [
-            "Selection Criteria for $profile",'',
-            '  Valid options are path and author, globbing allowed.',
+            "# Selection Criteria for $profile",'#',
+            '#  Valid options are path and author, globbing allowed.',
             '---',
             'path:',
             q{  - '**'},
