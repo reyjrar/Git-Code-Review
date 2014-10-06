@@ -210,10 +210,10 @@ my %_DEFAULTS = (
         [% USE format -%]
         [% USE td         = format('%9s |') -%]
         [% USE th         = format('|| %12s |') -%]
-        [% SET states     = [ 'approved', 'concerns', 'review' ] -%]
+        [% SET states     = [ 'approved', 'concerns', 'locked', 'review' ] -%]
         [% SET simple     = [ 'complete', 'todo' ] -%]
 
-        Commit Status [% options.exists('history_start') ? options.history_start : '' %] through [% options.at %]
+        Commit Status [% options.exists('since') ? options.since : '' %] through [% options.until %]
         ----
         [% IF commits.keys.size > 0 -%]
         [% th('profile') %]
@@ -233,7 +233,7 @@ my %_DEFAULTS = (
 
 
 
-        History [% options.exists('history_start') ? options.history_start : '' %] through [% options.at %]
+        History [% options.exists('since') ? options.since : '' %] through [% options.until %]
         ----
         [% IF monthly.keys.size > 0 -%]
         [% th('state') %]

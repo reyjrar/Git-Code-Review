@@ -10,17 +10,15 @@ use Git::Code::Review::Notify;
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
 use POSIX qw(strftime);
+use Time::Local qw(timelocal);
 use YAML;
 
-my $NOW           = strftime('%F', localtime);
-my $THIRTYDAYSAGO = strftime('%F', localtime(time - (86400*30)));
-
+my $NOW = strftime('%F', localtime);
 sub opt_spec {
     return (
-        ['all',         "Ignore profile settings, generate report for all profiles." ],
-        ['history-start:s',  "Date to start history on, default is full history" ],
-        ['concerns-start:s', "Date to start display of commits with conerns in approved state, default is $THIRTYDAYSAGO", {default=>$THIRTYDAYSAGO}],
-        ['at:s',             "Status of the repository at this date, default today", {default => $NOW}],
+        ['all',     "Ignore profile settings, generate report for all profiles." ],
+        ['since:s', "Date to start history on, default is full history" ],
+        ['until:s', "Status of the repository at this date, default today", {default => $NOW}],
     );
 }
 
@@ -46,15 +44,24 @@ sub execute {
     my @ls = ('ls-files');
     push @ls, $profile unless $opt->{all};
 
+    # Start of last month
+    my @parts = reverse split /-/, $opt->{until};
+    $parts[-2]--;   # Adjust the Month for 0..11
+    $parts[-2]--;   # Now, last month!
+    $parts[0] = 1;  # The first of the month
+    unshift @parts, 0,0,0;
+    my $epoch_historic = timelocal(@parts);
+    my $last_month = strftime('%F', localtime($epoch_historic));
+
     my @commits  = ();
-    if( $opt->{at} ne $NOW ) {
+    if( $opt->{until} ne $NOW ) {
         # Rewind the Repository
-        my @rev = $audit->run('rev-list', '-n', 1, '--before', $opt->{at}, 'master');
+        my @rev = $audit->run('rev-list', '-n', 1, '--before', $opt->{until}, 'master');
         if(!@rev) {
-            output({color=>'red',stderr=>1}, "No revisions in the repository at $opt->{at}!");
+            output({color=>'red',stderr=>1}, "No revisions in the repository at $opt->{until}!");
             exit 1;
         }
-        debug({color=>'cyan'}, "+ Rewinding history to $opt->{at} with sha1:$rev[0]");
+        debug({color=>'cyan'}, "+ Rewinding history to $opt->{until} with sha1:$rev[0]");
         $audit->run(checkout => $rev[0]);
         @commits = map { basename $_ } grep /\.patch$/, $audit->run(@ls);
         gcr_reset();
@@ -62,6 +69,7 @@ sub execute {
     else {
         @commits = map { basename $_ } grep /\.patch$/, $audit->run(@ls);
     }
+    verbose({color=>'cyan'}, "Generating report for Period $last_month through $opt->{until}");
 
     my %commits  = ();
     my @concerns = ();
@@ -78,7 +86,7 @@ sub execute {
             debug({indent=>1,color=>'green'}, "+ Success!");
 
             # Check Date
-            next if $opt->{history_start} && $commit->{date} lt $opt->{history_start};
+            next if $opt->{since} && $commit->{date} lt $opt->{since};
 
             # Monthly Tracking
             my $month = join('-', (split /-/,$commit->{date})[0,1] );
@@ -88,25 +96,24 @@ sub execute {
             $monthly{$month}->{$state}++;
 
             # Check profiles
-            my $profile = exists $commit->{profile} ? $commit->{profile} : undef;
-            next unless $profile;
-            next if $profile eq 'Locked';
+            my $profile = exists $commit->{profile} && length $commit->{profile} ? $commit->{profile} : '*none*';
 
             # Commit State Tracking
             $commits{$profile} ||= {};
-            $commits{$profile}->{$commit->{state}} ||= 0;
-            $commits{$profile}->{$commit->{state}}++;
-
+            $commits{$profile}->{lc $commit->{state}} ||= 0;
+            $commits{$profile}->{lc $commit->{state}}++;
         }
     }
 
     # Concerns Information
     my @details  = ();
     my %concerns = ();
-    my @log_options = qw(--reverse);
+    my %selected = ();
 
-    push @log_options, "--since", $opt->{history_start} if exists $opt->{history_start};
-    push @log_options, "--until", $opt->{at}            if $opt->{at} ne $NOW;
+    # Generate the log entries
+    my   @log_options = qw(--reverse);
+    push @log_options, "--since", $opt->{since} if exists $opt->{since};
+    push @log_options, "--until", $opt->{until} if $opt->{until} ne $NOW;
     push @log_options, '--', $profile unless $opt->{all};
 
     my $logs = $audit->log(@log_options);
@@ -129,13 +136,13 @@ sub execute {
         );
 
         # For selections, add details
-        push @record, '', $audit->run(qw(diff-tree --stat -r), $log->commit)
-            if $data->{state} eq 'select';
-
-        if( $opt->{at} eq $NOW || $date le $opt->{at} ) {
-            # Add to our details
-            push @details, join("\n", @record);
+        if( $data->{state} eq 'select' && $data->{criteria}{until} ge $last_month ) {
+            my @files = map { my $p = basename($_); $p =~ s/\.patch//; $p }
+                        grep /\.patch$/, $audit->run(qw(diff-tree --name-only -r), $log->commit);
+            @selected{@files} = ();
         }
+        # Add to our details
+        push @details, join("\n", @record);
 
         # Get the SHA1
         my $sha1 = gcr_audit_commit($log->commit);
@@ -150,7 +157,7 @@ sub execute {
         next unless defined $commit;
 
         # We have an audit commit, we might not care about.
-        if( exists $opt->{history_start} && exists $commit->{date} && $commit->{date} lt $opt->{history_start} ) {
+        if( exists $opt->{since} && exists $commit->{date} && $commit->{date} lt $opt->{since} ) {
             splice @details, -1, 1;
         }
 
@@ -174,7 +181,7 @@ sub execute {
         elsif( $data->{state} eq 'approved' || $data->{state} eq 'comments' ) {
             next unless exists $concerns{$sha1};
 
-            if ( $data->{state} eq 'approved' && $date le $opt->{concerns_start} ) {
+            if ( $data->{state} eq 'approved' && $date le $last_month ) {
                 delete $concerns{$sha1};
             }
             else {
@@ -203,6 +210,7 @@ sub execute {
         monthly  => \%monthly,
         concerns => \%concerns,
         profile  => $opt->{all} ? 'all' : $profile,
+        selected => {map { my $c=gcr_commit_info($_); $_ => [ $c->{date}, ($c->{profile} ? $c->{profile} : ''), $c->{state} ] } keys %selected},
         history  => \@details,
     });
 }
