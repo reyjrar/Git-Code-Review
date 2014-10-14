@@ -700,8 +700,7 @@ sub gcr_audit_commit {
     # Get a list of files in the commit that end in .patch
     my %c = map { $_ => 1 }
             map { s/\.patch//; basename($_) }
-            grep { /\.patch$/ }
-                $audit->run(qw(diff-tree --no-commit-id --name-only -r), $audit_sha1);
+            gcr_audit_files($audit_sha1);
 
     my @commits = keys %c;
     if(@commits != 1) {
