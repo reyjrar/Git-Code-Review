@@ -252,7 +252,7 @@ my %_DEFAULTS = (
 
 
 
-        Active Concerns
+        Active Concerns through [% options.until %]
         ----
         [% IF concerns.keys.size > 0 -%]
         [% FOREACH sha1 IN concerns.keys.sort -%]

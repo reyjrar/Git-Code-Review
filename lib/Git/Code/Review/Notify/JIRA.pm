@@ -106,7 +106,8 @@ sub send {
     verbose({color=>'green'}, "[$parent] - Parent Ticket Discovered.");
 
     # Report Ticket Search
-    my $report_summary = sprintf('%s - %s', $config{'jira-title'}, $config{options}->{until});
+    my $month = join('-', (split /-/, $config{month})[0,1]);
+    my $report_summary = sprintf('%s - %s', $config{'jira-title'}, $month);
     my $report_search = sprintf('project = %s AND summary ~ "%s" AND issuetype in subTaskIssueTypes()',$config{'jira-project'}, $config{'jira-title'});
     my $report_ticket;
     my $report;
@@ -182,7 +183,8 @@ sub send {
 
     # Full log as an attachment
     my %attachments = map { $_ => 1 } @{ $report_ticket->{attachmentNames} };
-    if(!exists $attachments{'history.log'} && exists $config{history}) {
+    my $history_file= sprintf('history-%s.log', $config{options}->{until});
+    if(!exists $attachments{$history_file} && exists $config{history}) {
         # Record in the ticket
         my ($fh,$filename) = tempfile();
         $fh->autoflush(1);
@@ -190,33 +192,34 @@ sub send {
 
         seek($fh,0,0);
         eval {
-            $jira_client->attach_files_to_issue($report, { 'history.log' => $fh });
+            $jira_client->attach_files_to_issue($report, { $history_file => $fh });
             close($fh);
         };
         my $err = $@;
         if( $err ) {
-            output({color=>'red',stdout=>1}, "ERROR Attaching file: $err");
+            output({color=>'red',stdout=>1}, "ERROR Attaching file ($history_file): $err");
             unlink $filename;
             exit 1;
         }
         unlink $filename;
     }
-    if(!exists $attachments{'selected.csv'} && exists $config{selected}) {
+    my $selection_file= sprintf('selection-%s.csv', $config{options}->{until});
+    if(!exists $attachments{$selection_file} && exists $config{selected}) {
         # Record in the ticket
         my ($fh,$filename) = tempfile();
         $fh->autoflush(1);
-        foreach my $k (keys %{ $config{selected} }) {
+        foreach my $k (sort { $config{selected}->{$a}[0] cmp $config{selected}->{$b}[0] } grep { ref $config{selected}->{$_} } keys %{ $config{selected} }) {
             printf $fh "%s\n", join(',', $k, @{ $config{selected}->{$k} });
         }
 
         seek($fh,0,0);
         eval {
-            $jira_client->attach_files_to_issue($report, { 'selected.csv' => $fh });
+            $jira_client->attach_files_to_issue($report, { $selection_file => $fh });
             close($fh);
         };
         my $err = $@;
         if( $err ) {
-            output({color=>'red',stdout=>1}, "ERROR Attaching file: $err");
+            output({color=>'red',stdout=>1}, "ERROR Attaching file($selection_file): $err");
             unlink $filename;
             exit 1;
         }

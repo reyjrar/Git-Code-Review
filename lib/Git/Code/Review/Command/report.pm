@@ -13,12 +13,19 @@ use POSIX qw(strftime);
 use Time::Local qw(timelocal);
 use YAML;
 
+my $_RESET=0;
+END {
+    # Make sure we reset
+    gcr_reset() if $_RESET;
+}
+
 my $NOW = strftime('%F', localtime);
 sub opt_spec {
     return (
         ['all',     "Ignore profile settings, generate report for all profiles." ],
         ['since:s', "Date to start history on, default is full history" ],
         ['until:s', "Status of the repository at this date, default today", {default => $NOW}],
+        ['update',  "Check the status of commits as of today, to update old JIRA tickets."],
     );
 }
 
@@ -55,7 +62,7 @@ sub execute {
 
     my @commits  = ();
     if( $opt->{until} ne $NOW ) {
-        # Rewind the Repository
+        # Rewind the Repository to the date selected.
         my @rev = $audit->run('rev-list', '-n', 1, '--before', $opt->{until}, 'master');
         if(!@rev) {
             output({color=>'red',stderr=>1}, "No revisions in the repository at $opt->{until}!");
@@ -63,13 +70,16 @@ sub execute {
         }
         debug({color=>'cyan'}, "+ Rewinding history to $opt->{until} with sha1:$rev[0]");
         $audit->run(checkout => $rev[0]);
-        @commits = map { basename $_ } grep /\.patch$/, $audit->run(@ls);
-        gcr_reset();
+        $_RESET=1;
     }
-    else {
-        @commits = map { basename $_ } grep /\.patch$/, $audit->run(@ls);
-    }
+    @commits = map { basename $_ } grep /\.patch$/, $audit->run(@ls);
     verbose({color=>'cyan'}, "Generating report for Period $last_month through $opt->{until}");
+
+    if( exists $opt->{update} && $opt->{update} ) {
+        # Time travel back to the present to make note of any changes in status
+        gcr_reset();
+        $_RESET=0;
+    }
 
     my %commits  = ();
     my @concerns = ();
@@ -78,12 +88,13 @@ sub execute {
         # Assemble Commits
         foreach my $base (@commits) {
             my $commit;
-            debug("Getting info on $base");
             eval {
                 $commit = gcr_commit_info($base);
             };
-            next unless defined $commit;
-            debug({indent=>1,color=>'green'}, "+ Success!");
+            if( !defined $commit ) {
+                verbose({color=>'yellow'}, "Collecting information on $base failed.");
+                next;
+            }
 
             # Check Date
             next if $opt->{since} && $commit->{date} lt $opt->{since};
@@ -111,9 +122,8 @@ sub execute {
     my %selected = ();
 
     # Generate the log entries
-    my   @log_options = qw(--reverse);
+    my   @log_options = qw(--reverse --stat);
     push @log_options, "--since", $opt->{since} if exists $opt->{since};
-    push @log_options, "--until", $opt->{until} if $opt->{until} ne $NOW;
     push @log_options, '--', $profile unless $opt->{all};
 
     my $logs = $audit->log(@log_options);
@@ -133,13 +143,36 @@ sub execute {
             sprintf("Date:   %s", strftime('%F %T',localtime($log->author_localtime))),
             '',
             $log->raw_message,
+            $log->extra,
         );
 
         # For selections, add details
-        if( $data->{state} eq 'select' && $data->{criteria}{until} ge $last_month ) {
+        if( $data->{state} eq 'select' ) {
             my @files = map { my $p = basename($_); $p =~ s/\.patch//; $p }
-                        grep /\.patch$/, $audit->run(qw(diff-tree --name-only -r), $log->commit);
+                        gcr_audit_files($log->commit);
             @selected{@files} = ();
+            my $source = gcr_repo('source');
+            foreach my $sha1 (@files) {
+                my $c = undef;
+                eval {
+                    $c = gcr_commit_info($sha1);
+                };
+                if(!defined $c) {
+                    delete $selected{$sha1};
+                    debug({color=>"yellow"}, "Collecting data on $sha1 failed.");
+                    next;
+                }
+                if(exists $opt->{since} && $c->{date} lt $opt->{since}) {
+                    debug("$sha1 date $c->{date} is out-of-range $opt->{since}.");
+                    next;
+                }
+                $selected{$sha1} = [
+                    $c->{date},
+                    ($c->{profile} ? $c->{profile} : ''),
+                    $c->{state},
+                    join(' ', $source->run(qw(diff-tree --no-commit-id --name-only -r),$sha1)),
+                ];
+            }
         }
         # Add to our details
         push @details, join("\n", @record);
@@ -197,6 +230,8 @@ sub execute {
         }
     }
 
+    gcr_reset() if $_RESET--;
+
     output({color=>'cyan'},
         '=*'x40,
         sprintf('Git::Code::Review Report for %s through %s', $opt->{since}, $opt->{until}),
@@ -206,11 +241,12 @@ sub execute {
 
     Git::Code::Review::Notify::notify(report => {
         options  => $opt,
+        month    => $last_month,
         commits  => \%commits,
         monthly  => \%monthly,
         concerns => \%concerns,
         profile  => $opt->{all} ? 'all' : $profile,
-        selected => {map { my $c=gcr_commit_info($_); $_ => [ $c->{date}, ($c->{profile} ? $c->{profile} : ''), $c->{state} ] } keys %selected},
+        selected => \%selected, ,
         history  => \@details,
     });
 }
