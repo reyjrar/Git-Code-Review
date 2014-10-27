@@ -89,7 +89,6 @@ sub execute {
         );
         debug({color=>'yellow'},  "CMD=" . join(' ', $sub->cmdline));
         @out = $sub->final_output();
-        $audit->run(qw(submodule init));
     }
     if($sub->exit != 0) {
         output({stderr=>1,color=>'red'},"Submodule init failed, please try again");
@@ -100,6 +99,8 @@ sub execute {
     else {
         debug(map { "--| $_" } @out);
     }
+    output({color=>"magenta"}, "Pulling source repository to complete submodule initialization, may take a few minutes.");
+    debug({color=>'cyan'}, $audit->run(qw(submodule --init --remote --merge)));
 
     # Set our config directory for our artifacts;
     gcr_mkdir('.code-review');

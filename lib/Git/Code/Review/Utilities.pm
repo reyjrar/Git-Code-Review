@@ -80,7 +80,7 @@ my %STATE = (
 );
 # General Config options
 my %CFG = (
-    editor => exists $EDITOR{$ENV{EDITOR}} ? $ENV{EDITOR} : 'vim',
+    editor => exists $ENV{EDITOR} && exists $EDITOR{$ENV{EDITOR}} ? $ENV{EDITOR} : 'vim',
 );
 my %PATHS   = (
     audit  => getcwd(),
@@ -287,21 +287,21 @@ Reset the audit directory to origin:master, stash weirdness.  Most operations ca
 sub gcr_reset {
     my ($type) = @_;
     $type ||= 'audit';
-    my $repo = gcr_repo($type);
+    my $audit = gcr_repo('audit');
     # Stash any local changes, and pull master
-    verbose({color=>'magenta'},"+ [$type] Reseting to origin:master, any changes will be stashed.");
-    my $origin = gcr_origin($type);
-    if(defined $origin) {
-        verbose({level=>2},"= Found origin, checking working tree status.");
-        my @dirty = $repo->run(qw{status -s});
-        if( @dirty ) {
-            verbose({color=>'yellow'},"! Audit working tree is dirty, stashing files");
-            $repo->run($type eq 'audit' ? qw{stash -u} : qw(reset --hard));
-        }
-        if( $type eq 'audit' ) {
+    if( $type eq 'audit' ) {
+        verbose({color=>'magenta'},"+ [$type] Reseting repository any changes will be stashed.");
+        my $origin = gcr_origin('audit');
+        if(defined $origin) {
+            verbose({level=>2},"= Found origin, checking working tree status.");
+            my @dirty = $audit->run(qw{status -s});
+            if( @dirty ) {
+                verbose({color=>'yellow'},"! Audit working tree is dirty, stashing files");
+                $audit->run($type eq 'audit' ? qw{stash -u} : qw(reset --hard));
+            }
             verbose({level=>2,color=>'cyan'},"= Swithcing to master branch.");
             eval {
-                $repo->run(qw(checkout master));
+                $audit->run(qw(checkout master));
             };
             if( my $err = $@ ) {
                 if( $err !~ /A branch named 'master'/ ) {
@@ -310,36 +310,25 @@ sub gcr_reset {
                 }
                 debug({color=>'red'}, "!! $err");
             }
+            verbose({level=>2,color=>'cyan'},"+ Initiating pull from $origin");
+            local *STDERR = *STDOUT;
+            my @output = $audit->run(
+                $type eq 'audit' ? qw(pull origin master) : 'pull'
+            );
+            debug({color=>'magenta'}, @output);
         }
-        verbose({level=>2,color=>'cyan'},"+ Initiating pull from $origin");
-        local *STDERR = *STDOUT;
-        my @output = $repo->run(
-            $type eq 'audit' ? qw(pull origin master) : 'pull'
-        );
-        debug({color=>'magenta'}, @output);
-
-        # Submodule reset includes incrementing the submodule pointer.
-        if( $type eq 'source' ) {
-            # commit submodule update
-            eval {
-                my $audit = gcr_repo('audit');
-                my %CFG = gcr_config();
-                $audit->run(add => 'source');
-                $audit->run(commit => '-m',
-                    join("\n", "Source Repository Refresh",
-                        Dump({
-                            skip     => 'true',
-                            reviewer => $CFG{user},
-                            action   => 'source_refresh',
-                        })
-                    )
-                );
-                gcr_push();
-            };
+        else {
+            die "no remote 'origin' available!";
         }
     }
+    elsif( $type eq 'source' ) {
+        # Submodule reset includes incrementing the submodule pointer.
+        output({color=>'magenta'}, "Pulling the source repository.");
+        debug({color=>'cyan'},$audit->run(qw(submodule update --init --remote --merge)));
+    }
     else {
-        die "no remote 'origin' available!";
+        output({stderr=>1,color=>'red'}, "gcr_reset('$type') is not known, going to kill myself to prevent bad things.");
+        exit 1;
     }
 }
 
