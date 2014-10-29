@@ -527,7 +527,8 @@ sub gcr_change_profile {
     }
 
     # Validate Profile
-    my %profiles = gcr_profiles();
+    my %profiles;
+    @profiles{gcr_profiles()} = ();
     if(!exists $profiles{$profile}) {
         output({stderr=>1,color=>"red"}, "Profile '$profile' doesn't exist. (Available: " . join(', ', sort keys %profiles));
         exit 1;
