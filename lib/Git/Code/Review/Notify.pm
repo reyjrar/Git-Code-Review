@@ -271,6 +271,19 @@ my %_DEFAULTS = (
             (/) No concerns raised.
         [% END -%]
     },
+    overdue => q{
+        # Overview of Commits older than [% options.age %] days old.
+
+        [% FOREACH profile IN profiles.keys.sort -%]
+        [% NEXT IF !profiles.$profile.exists('total') -%]
+        [% NEXT IF profiles.$profile.total <= 0 -%]
+        [% profile %]: [% profiles.$profile.total %]
+        [% FOREACH month IN profiles.$profile.keys.sort -%]
+            [%- NEXT IF month == "total" -%]
+            [% month %]: [% profiles.$profile.$month %]
+        [% END %]
+        [% END -%]
+    },
 );
 
 sub _install_templates {
