@@ -187,6 +187,8 @@ sub gcr_config {
             next unless @configs;
             $_config{$sub} = @configs > 1 ? $merge->merge(@configs) : $configs[0];
         }
+
+        %CFG = %_config;
     }
     return wantarray ? %_config : { %_config };
 }
