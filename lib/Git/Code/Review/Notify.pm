@@ -160,12 +160,12 @@ my %_DEFAULTS = (
     concerns => q{
         Greetings,
 
-        [% config.user %] has raised concerns with a commit ([% commit.sha1 %]).  You may be able to
-        assist with that concern.
+        [% config.user %] has raised concerns with a commit ([% commit.sha1 %]).
+        You may be able to assist with that concern.
 
         Reason: [% reason.short %]
 
-        [% reason.details %]
+        Details: [% reason.details %]
 
         If this was corrected please respond to this message with:
 
@@ -180,7 +180,7 @@ my %_DEFAULTS = (
 
         Reason: [% reason.short %]
 
-        [% reason.details %]
+        Details: [% reason.details %]
 
         No further action is necessary.
     },
