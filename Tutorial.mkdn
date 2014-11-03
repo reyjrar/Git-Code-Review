@@ -4,7 +4,7 @@ Git::Code::Review::Tutorial - How to work Git::Code::Review
 
 # VERSION
 
-version 0.9
+version 1.0
 
 # MOTIVATION
 
@@ -241,15 +241,3 @@ This software is Copyright (c) 2014 by Brad Lhotsky.
 This is free software, licensed under:
 
     The (three-clause) BSD License
-
-# POD ERRORS
-
-Hey! __The above document had some coding errors, which are explained below:__
-
-- Around line 131:
-
-    '=item' outside of any '=over'
-
-- Around line 141:
-
-    You forgot a '=back' before '=head3'
