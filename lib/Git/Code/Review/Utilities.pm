@@ -16,6 +16,7 @@ use Getopt::Long qw(:config pass_through);
 use Git::Repository qw( Log );
 use Hash::Merge;
 use POSIX qw(strftime);
+use Sys::Hostname;
 use YAML;
 
 # Setup the exporter
@@ -659,7 +660,13 @@ it will be used as the YAML header text/comment.
 =cut
 sub gcr_commit_message {
     my($commit,$info) = @_;
-    my %details = ();
+    my %details = (
+        context => {
+            pid      => $$,
+            hostanme => hostname(),
+            pwd      => getcwd,
+        },
+    );
     my %cfg = gcr_config();
     #
     # Grab from Commit Object
