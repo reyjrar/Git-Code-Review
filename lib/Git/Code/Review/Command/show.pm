@@ -46,6 +46,7 @@ sub execute {
         '=*'x40,
     );
     output({clear=>1},@data);
+    debug_var({gcr_commit_info($sha1)});
 
     my @log_options = (qw(--reverse -F -S), $sha1);
     my $logs = $audit->log(@log_options);

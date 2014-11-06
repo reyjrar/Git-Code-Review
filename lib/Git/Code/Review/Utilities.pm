@@ -32,6 +32,7 @@ use Sub::Exporter -setup => {
         gcr_push
         gcr_profile
         gcr_profiles
+        gcr_valid_profile
         gcr_open_editor
         gcr_view_commit
         gcr_view_commit_files
@@ -47,6 +48,7 @@ use Sub::Exporter -setup => {
         gcr_audit_files
         gcr_audit_record
         gcr_state_color
+        gcr_lookup_profile
     )],
 };
 
@@ -137,15 +139,31 @@ Returns a list of profiles with a selection file available
 
 =cut
 
+my %_profiles;
 sub gcr_profiles {
-    my $repo = gcr_repo();
-    my @files = $repo->run('ls-files', '*/selection.yaml');
-    my %profiles = (default => 1);
-    foreach my $file (@files) {
-        my @parts = File::Spec->splitdir($file);
-        $profiles{$parts[-2]} = 1;
+    if(! scalar keys %_profiles ) {
+        my $repo = gcr_repo();
+        my @files = $repo->run('ls-files', '*/selection.yaml');
+        $_profiles{default} = 1;
+        foreach my $file (@files) {
+            my @parts = File::Spec->splitdir($file);
+            $_profiles{$parts[-2]} = 1;
+        }
     }
-    return wantarray ? sort keys %profiles : [ sort keys %profiles ];
+    return wantarray ? sort keys %_profiles : [ sort keys %_profiles ];
+}
+
+=func gcr_valid_profile($profile_name)
+
+Returns 1 if a valid profile and undef if not
+
+=cut
+sub gcr_valid_profile {
+    my ($profile) = @_;
+
+    gcr_profiles() unless keys %_profiles;
+
+    return exists $_profiles{$profile};
 }
 
 =func gcr_config()
@@ -622,6 +640,11 @@ sub gcr_change_state {
         die "no review_path for reset" unless( exists $commit->{review_path} && length $commit->{review_path});
         @path = File::Spec->splitdir($commit->{review_path});
     }
+    # Clean up path
+    if( $STATE{$state}->{type} ne 'user' && !gcr_valid_profile($path[0]) ) {
+        my $profile = exists $commit->{profile} && gcr_valid_profile($commit->{profile} ) ? $commit->{profile} : gcr_lookup_profile($commit->{sha1});
+        splice @path, 0, 1, $profile;
+    }
     # Moves require that we keep the same base name
     push @path, $commit->{base} unless $path[-1] eq $commit->{base};
     my $target = File::Spec->catfile(@path);
@@ -812,6 +835,36 @@ sub gcr_state_color {
     return exists $STATE{$state} ? $STATE{$state}->{color} : 'magenta';
 }
 
+=func gcr_lookup_profile($commit)
+
+Review history to find the last profile this commit was a part of.  Takes a sha1 or patch.
+
+=cut
+sub gcr_lookup_profile {
+    my ($search) = @_;
+
+    $search =~ s/\.patch//;
+
+    my $audit = gcr_repo();
+    my @options = ('--', sprintf('*%s*',$search));
+
+    my $logs = $audit->log(@options);
+    my $profile = undef;
+    my %profiles = ();
+    @profiles{gcr_profiles()} = ();
+    while( my $log = $logs->next ) {
+        my $data = gcr_audit_record($log->message);
+        next unless defined $data;
+        next unless ref $data eq 'HASH';
+        next unless exists $data->{profile};
+        next unless exists $profiles{$data->{profile}};
+        $profile = $data->{profile};
+        last;
+    }
+
+    return defined $profile ? $profile : gcr_profile();
+}
+
 =func _get_review_path($path)
 
 Figure out the review path from a file path.
@@ -863,8 +916,8 @@ Return the profile name
 sub _get_commit_profile {
     my ($path) = @_;
 
-    my $part = (File::Spec->splitdir($path))[0];
-    return $part eq 'Locked' ? undef : $part;
+    my @parts = File::Spec->splitdir($path);
+    return gcr_valid_profile($parts[0]) ? $parts[0] : gcr_lookup_profile($parts[-1]);
 }
 
 =func _get_author($path)
