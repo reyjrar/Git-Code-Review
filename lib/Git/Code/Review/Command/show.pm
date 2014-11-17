@@ -36,7 +36,7 @@ sub execute {
     my $sha1   = $args->[0];
     my $audit  = gcr_repo();
     my $source = gcr_repo('source');
-    gcr_reset();
+    gcr_reset($_) for qw(audit source);
 
     # Commit Information
     my @data = $source->run(qw(log -n 1 --stat -r),$sha1);

@@ -485,6 +485,7 @@ stores time spent in editor as review_time in the hash.
 =cut
 sub gcr_view_commit {
     my ($commit) = @_;
+    gcr_reset('source');
     $commit->{review_time} = gcr_open_editor(readonly => File::Spec->catfile($AUDITDIR,$commit->{current_path}));
 }
 

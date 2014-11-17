@@ -58,6 +58,7 @@ sub execute {
 
     # Git Log Options
     my @options = (
+        '--no-merges',                  # No merge commits
         q{--pretty=format:%H %ci},      # output formatting
         "--since=$opt->{since}",        # Timeframe
         "--until=$opt->{until}",        # Timeframe
