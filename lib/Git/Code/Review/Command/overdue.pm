@@ -8,6 +8,7 @@ use File::Basename;
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review::Notify;
 use Git::Code::Review -command;
+use POSIX qw(strftime);
 use Time::Local;
 
 my $default_age = 7;
@@ -43,11 +44,13 @@ sub execute {
     my @overdue = sort { $a->{date} cmp $b->{date} }
                     grep { days_old($_->{date}) >= $opt->{age} }
                     map { $_=gcr_commit_info(basename $_) }
-                    grep /Review/, $audit->run(@ls);
+                    grep !/Approved/, $audit->run(@ls);
+
 
     if(@overdue) {
         # Do stuff
         my %profiles =  map { $_ => { total => 0 } } $opt->{all} ? gcr_profiles() : $profile;
+        my %current_concerns = ();
         foreach my $commit (@overdue) {
             my $p = exists $commit->{profile} && $commit->{profile} ? $commit->{profile} : '__UNKNOWN__';
             $profiles{$p} ||= {total => 0};
@@ -55,7 +58,56 @@ sub execute {
             my $month = join('-', (split /[.\-]/, $commit->{date})[0,1]);
             $profiles{$p}->{$month} ||= 0;
             $profiles{$p}->{$month}++;
+            $current_concerns{$commit->{sha1}} = 1 if $commit->{state} eq 'concerns';
         }
+
+        # Generate the log entries
+        my   @log_options = qw(--reverse -F --grep concerns);
+        push @log_options, '--', $profile unless $opt->{all};
+
+        my $logs = $audit->log(@log_options);
+        my %concerns = ();
+        while(my $log = $logs->next) {
+            # Details
+            my $data = gcr_audit_record($log->message);
+            my $date = strftime('%F',localtime($log->author_localtime));
+
+            # Skip some states
+            next if exists $data->{skip};
+            next unless exists $data->{state};
+
+            # Get the SHA1
+            my $sha1 = gcr_audit_commit($log->commit);
+
+            # Only handle commits still in "concerns"
+            next unless defined $sha1 and exists $current_concerns{$sha1};
+
+            # Profile Specific Details
+            my $commit;
+            if( defined $sha1 ) {
+                $data->{profile} ||= gcr_commit_profile($sha1);
+                eval { $commit = gcr_commit_info($sha1) };
+            }
+            # If there's no commit in play, skip this.
+            next unless defined $commit;
+
+            # Parse History for Commits with Concerns
+            $concerns{$commit->{profile}}{$sha1} = {
+                concern => {
+                    date        => $date,
+                    explanation => $data->{message},
+                    reason      => $data->{reason},
+                    by          => $data->{reviewer},
+                },
+                commit => {
+                    profile => $data->{profile},
+                    state   => $commit->{state},
+                    date    => $commit->{date},
+                    by      => $data->{author},
+                },
+            };
+        }
+
 
         output({color=>'cyan',clear=>1},
             '=*'x40,
@@ -66,6 +118,7 @@ sub execute {
             options  => $opt,
             profiles => \%profiles,
             commits  => \@overdue,
+            concerns => \%concerns,
         });
     }
     else {

@@ -283,6 +283,24 @@ my %_DEFAULTS = (
             [% month %]: [% profiles.$profile.$month %]
         [% END %]
         [% END -%]
+
+        [% IF concerns.keys.size > 0 -%]
+        [% FOREACH profile IN concerns.keys.sort -%]
+        Active [% profile.ucfirst %] Concerns
+        ----
+        [% FOREACH sha1 IN concerns.$profile.keys.sort -%]
+        [% sha1 %]
+          * [% concerns.$profile.$sha1.commit.date %] authored by [% concerns.$profile.$sha1.commit.by %]
+          * [% concerns.$profile.$sha1.concern.date %] raised for *[% concerns.$profile.$sha1.concern.reason %]* by [% concerns.$profile.$sha1.concern.by %]
+
+        [% FOREACH line IN concerns.$profile.$sha1.concern.explanation.split("\n") -%]
+        [% NEXT IF line == 'Other' %]
+            [% line %]
+        [% END -%]
+
+        [% END -%]
+        [% END -%]
+        [% END -%]
     },
 );
 
