@@ -393,7 +393,7 @@ sub gcr_commit_info {
     # Object can be a sha1, path in the repo, or patch
     my ($_line,$_sub) = (caller 1)[2,3];
 
-    my @matches = $audit->run('ls-files', "*$object*");
+    my @matches = grep /\.patch$/, $audit->run('ls-files', "*$object*");
     if( @matches != 1 ) {
         die sprintf('gcr_commit_info("%s") %s commit object: %s line %d', $object, (@matches > 1 ? 'ambiguous' : 'unknown'), $_sub, $_line);
     }
