@@ -9,7 +9,7 @@ use File::Spec;
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
 use POSIX qw(strftime);
-use Text::Wrap qw(wrap);
+use Text::Wrap qw(fill);
 use YAML;
 
 sub opt_spec {
@@ -48,8 +48,10 @@ sub execute {
     output({clear=>1},@data);
     debug_var({gcr_commit_info($sha1)});
 
-    my @log_options = (qw(--reverse -F -S), $sha1);
+    my @log_options = qw(--reverse --);
+    push @log_options, sprintf "*/%s**", $sha1;
     my $logs = $audit->log(@log_options);
+    debug({color=>'cyan'}, "Running: git log ". join(' ', map { /\s/ ? "'$_'" : $_ } @log_options));
 
     output({color=>'green',clear=>1},
         '#'x80,
@@ -79,10 +81,10 @@ sub execute {
             push @output, $data->{$key} if exists $data->{$key};
         }
 
-        debug_var($data);
         output({indent=>1,color=>$color,data=>1}, join("\t", @output));
         if(exists $data->{message} && $state ne 'locked') {
-            verbose({indent=>2}, $_) for split /\r?\n/, wrap("", "", $data->{message});
+            my $message = exists $data->{fixed_by} ? join('  ', $data->{message}, "Fixed by: $data->{fixed_by}") : $data->{message};
+            verbose({indent=>2}, $_) for split /\r?\n/, fill("", "", $message);
         }
     }
 }

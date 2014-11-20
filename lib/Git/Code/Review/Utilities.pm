@@ -657,7 +657,7 @@ sub gcr_change_state {
         verbose("+ Moving from $orig to $target : $info->{message}");
         debug($audit->run('mv', $orig, $target));
         my %details = (
-            profile        => gcr_profile(),
+            profile        => exists $commit->{profile} ? $commit->{profile} : gcr_profile(),
             commit         => $commit->{sha1},
             commit_date    => $commit->{date},
             state_previous => $prev,
