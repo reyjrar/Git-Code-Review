@@ -189,7 +189,7 @@ sub gcr_config {
             $_config{$gitrc{$k}} = $v;
         }
 
-        foreach my $sub (qw(notification)) {
+        foreach my $sub (qw(notification mailhandler)) {
             my @files = (
                 File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config"),
                 File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")
