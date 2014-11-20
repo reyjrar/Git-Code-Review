@@ -18,7 +18,7 @@ use Text::Wrap qw(fill);
 use YAML;
 
 my %CONFIG = gcr_config();
-die "No mailhandler.config found!" unless exists $CONFIG{mailhandler};
+$CONFIG{mailhandler} ||= {};
 
 sub opt_spec {
     return (
@@ -43,6 +43,7 @@ sub execute {
     my($cmd,$opt,$args) = @_;
 
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+    die "No mailhandler.config found" unless keys %{ $CONFIG{mailhandler} };
 
     debug({color=>'cyan'},"Git::Code::Review Mailhandler Config");
     debug_var($opt);
