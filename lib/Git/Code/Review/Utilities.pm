@@ -194,7 +194,6 @@ sub gcr_config {
                 File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config"),
                 File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")
             );
-            debug("attempting to config for $sub");
             my @configs = ();
             foreach my $file (@files) {
                 next unless -f $file;
@@ -204,6 +203,7 @@ sub gcr_config {
                 };
             }
             next unless @configs;
+            debug("gcr_config() - loaded $sub configuration");
             $_config{$sub} = @configs > 1 ? $merge->merge(@configs) : $configs[0];
         }
 
@@ -266,9 +266,10 @@ sub gcr_mkdir {
     my $dir = $AUDITDIR;
     foreach my $sub (@path) {
         $dir = File::Spec->catdir($dir,$sub);
-        mkdir($dir,0755) unless -d $dir;
+        next if -d $dir;
+        mkdir($dir,0755);
+        debug("gcr_mkdir() created $dir");
     }
-    debug("audit_mkdir() created $dir");
     return $dir;
 }
 

@@ -23,8 +23,6 @@ my $PROFILE = gcr_profile();
 my @TEMPLATE_DIR = ( gcr_mkdir('.code-review','templates') );
 my $PROFILE_DIR = File::Spec->catdir(gcr_dir(), qw(.code-review profiles),$PROFILE,'templates');
 unshift @TEMPLATE_DIR, $PROFILE_DIR if -d $PROFILE_DIR;
-debug("Template search path:");
-debug_var(\@TEMPLATE_DIR);
 $Template::Stash::HASH_OPS->{nsort_by_value} = sub {
     my ($hash) = @_;
     return sort { $hash->{$a} <=> $hash->{$b} } keys %{ $hash };
@@ -40,6 +38,8 @@ sub notify {
 
     debug({color=>'magenta'}, "called Git::Code::Review::Notify::notify");
     debug_var($opts);
+    debug("Template search path");
+    debug_var(\@TEMPLATE_DIR);
 
     # Plugin Settings
     my %Plugins = (
