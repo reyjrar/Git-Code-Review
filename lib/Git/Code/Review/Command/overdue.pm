@@ -9,6 +9,7 @@ use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review::Notify;
 use Git::Code::Review -command;
 use POSIX qw(strftime);
+use Text::Wrap qw(fill);
 use Time::Local;
 
 my $default_age = 7;
@@ -95,7 +96,7 @@ sub execute {
             $concerns{$commit->{profile}}{$sha1} = {
                 concern => {
                     date        => $date,
-                    explanation => $data->{message},
+                    explanation => fill("", "", $data->{message}),
                     reason      => $data->{reason},
                     by          => $data->{reviewer},
                 },
