@@ -79,6 +79,7 @@ sub notify {
     my @META = (
         'GCR_REPO_AUDIT=' . gcr_origin('audit'),
         'GCR_REPO_SOURCE=' . gcr_origin('source'),
+        'GCR_NOTIFICATION=' . $name,
     );
 
     # Add commit data
