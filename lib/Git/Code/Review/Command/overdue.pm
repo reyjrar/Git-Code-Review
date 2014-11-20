@@ -41,14 +41,14 @@ sub execute {
     my @ls = ( 'ls-files' );
     push @ls, $opt->{all} ? '**.patch' : sprintf('%s/**.patch', $profile);
 
+    # Look for commits that aren't approved and older than X days
     my @overdue = sort { $a->{date} cmp $b->{date} }
                     grep { days_old($_->{date}) >= $opt->{age} }
                     map { $_=gcr_commit_info(basename $_) }
                     grep !/Approved/, $audit->run(@ls);
 
-
     if(@overdue) {
-        # Do stuff
+        # Calculate how many are overdue by profile
         my %profiles =  map { $_ => { total => 0 } } $opt->{all} ? gcr_profiles() : $profile;
         my %current_concerns = ();
         foreach my $commit (@overdue) {
@@ -107,7 +107,10 @@ sub execute {
                 },
             };
         }
-
+        # Disable some notifications
+        foreach my $remote (qw(JIRA EMAIL)) {
+            $ENV{"GCR_NOTIFY_${remote}_DISABLED"} = 1 unless $opt->{notify};
+        }
 
         output({color=>'cyan',clear=>1},
             '=*'x40,
