@@ -16,7 +16,7 @@ my %HEADERS = (
     'Priority'              => 'urgent',
     'Sensitivity'           => 'company confidential',
     'X-Automation-Program'  => $0,
-    'X-Automation-Function' => 'Code Review',
+    'X-Automation-Function' => 'Git::Code::Review',
     'X-Automation-Server'   => hostname(),
 );
 
@@ -40,16 +40,14 @@ sub send {
     my $data = delete $config{message};
     die "Message empty" unless defined $data && length $data > 0;
 
-    # Append meta-data
-    if(exists $config{meta}) {
-        $data .= "\n\n";
-        $data .= "# $_\n" for @{ $config{meta} };
-    }
-
     # Generate the email to send
     if( defined $data && length $data ) {
         debug("Evaluated template and received: ", $data);
-        my $subject = sprintf 'Git::Code::Review [%s] on %s', $config{name}, gcr_origin('source');
+        my $subject  = sprintf('Git::Code::Review %s %s=%s',
+            uc $config{name},
+            (exists $config{commit} ? "COMMIT" : "REPO"),
+            (exists $config{commit} ? $config{commit}->{sha1} : gcr_origin('source')),
+        );
         my $msg = MIME::Lite->new(
             From    => $config{from},
             To      => $config{to},

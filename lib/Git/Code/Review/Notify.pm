@@ -75,17 +75,6 @@ sub notify {
     );
     debug_var(\%VARIABLES);
 
-    # Meta-data
-    my @META = (
-        'GCR_REPO_AUDIT=' . gcr_origin('audit'),
-        'GCR_REPO_SOURCE=' . gcr_origin('source'),
-        'GCR_NOTIFICATION=' . $name,
-    );
-
-    # Add commit data
-    push @META, 'GCR_COMMIT=' . $opts->{commit}{sha1} if exists $opts->{commit};
-    push @META, 'GCR_COMMIT_FIX=' . $opts->{fix}{sha1} if exists $opts->{fix};
-
     # Install Templates
     my %tmpl = Git::Code::Review::Notify::Templates::_install_templates();
     die "invalid template called for notify($name)" unless exists $tmpl{$name};
@@ -101,7 +90,6 @@ sub notify {
                 %{ $opts },
                 name     => $name,
                 message  => $message,
-                meta     => \@META,
             );
         };
         if( my $err = $@ ) {
@@ -184,6 +172,44 @@ my %_DEFAULTS = (
         Details: [% reason.details %]
 
         No further action is necessary.
+    },
+    invalid_email => q{
+        The email you sent to [% rcpt %] is not valid because:
+
+        [% reason %]
+
+        Your email was ignored was ignored by the Automaton.
+
+        If it was a response to an email that Git::Code::Review sent you,
+        please review that email and follow any instructions explicitly.
+
+        You wanted to say:
+        [% FOREACH line IN message -%]
+        > [% line %]
+        [% END -%]
+    },
+    comments => q{
+        The commit [% commit.sha1 %] you flagged concerns has been commented on
+        by [% commenter %].  The user did not provide a FIX hash, so please review
+        those comments and take appropriate action.
+
+        You, [% reviewer %] were determined to be the reviewer.
+
+        You can view the history of the audit on the commit by:
+
+            git-code-review show [% commit.sha1 %] --verbose
+
+        You can move the commit to approved by:
+
+            git-code-review approve [% commit.sha1 %]
+
+        Follow the prompts to approve the commit.
+
+        Comments by [% commenter %]:
+        [% FOREACH line IN message -%]
+        > [% line %]
+        [% END -%]
+
     },
     select => q{
         Greetings,

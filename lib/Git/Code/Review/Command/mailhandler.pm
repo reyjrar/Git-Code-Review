@@ -12,6 +12,7 @@ use Email::MIME;
 use File::Spec;
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
+use Git::Code::Review::Notify;
 use Mail::IMAPClient;
 use Mojo::DOM;
 use Text::Wrap qw(fill);
@@ -157,16 +158,12 @@ sub execute {
 
         my @message = ();
         my %vars = ();
-        my $fallback;
         for(split /\r?\n/, $body) {
             if ( my ($key,$value) = (/GCR_([^=]+)=(\S+)/) ) {
                 $vars{lc $key} = $value;
             }
             elsif( my ($fixed) = (/FIX=([a-f0-9]{6,40})/) ) {
                 $vars{fixed} = $fixed;
-            }
-            elsif( my ($sha1) = /^>?\s*([a-f0-9]{6,40})\s*$/ ) {
-                $fallback ||= $sha1;
             }
             elsif( /^\s*>+/ || /^(?:\s*>)?\s*On.*wrote:$/  ) {
                 # skip;
@@ -176,15 +173,24 @@ sub execute {
             }
         }
         if(!exists $vars{commit}) {
-            # Try antique stuff
             if ( my ($sha1) = ($headers{Subject} =~ /COMMIT=([0-9a-f]{6,40})/) ) {
                 $vars{commit} = $sha1;
             }
-            elsif (defined $fallback && length $fallback == 40) {
-                $vars{commit} = $fallback;
-            }
         }
-        next unless exists $vars{commit};
+
+        # Mail handling for Commits Only
+        if( !exists $vars{commit} ) {
+            verbose("No commit object found.");
+
+            Git::Code::Review::Notify::notify(invalid_email => {
+                rcpt    => $headers{To},
+                to      => $addr->address,
+                reason  => 'Unable to figure out the commit object you are commenting on.',
+                message => \@message,
+            });
+
+            next;
+        }
         verbose("Processing Message relating to $vars{commit}");
 
         # Start modifying the audit
@@ -250,9 +256,33 @@ sub execute {
             my $message = gcr_commit_message($commit,{state=>'comment',message=>$vars{message}});
             $audit->run(commit => '-m', $message);
             gcr_push();
+
+            # Notify reviewer of comments
+            my @log_options = ('--', sprintf '*%s*', $commit->{sha1});
+            my $logs = $audit->log( @log_options );
+
+            my $reviewer = undef;
+            while(my $log = $logs->next) {
+                last if defined $reviewer;
+                my $data = gcr_audit_record($log->message);
+                next unless defined $data;
+                next unless exists $data->{state} && $data->{state} eq 'concerns';
+                $reviewer = $log->author_email;
+            }
+            if( defined $reviewer ) {
+                Git::Code::Review::Notify::notify(comments => {
+                        commit   => $commit,
+                        to       => $reviewer,
+                        reviewer => $reviewer,
+                        message  => \@message,
+                        commenter => $addr->address,
+                });
+            }
+            else {
+                output({color=>'red',stderr=>1}, "Unable to figure out reviewer for $commit->{sha1}");
+            }
         }
     }
-
 }
 
 1;
