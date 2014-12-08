@@ -384,7 +384,7 @@ sub gcr_commit_exists {
 =func gcr_commit_info($sha1 | $partial_sha1 | $path)
 
 Retrieves all relevant Git::Code::Review details on the commit
-that mataches the string passed in.
+that matches the string passed in.
 
 =cut
 sub gcr_commit_info {
