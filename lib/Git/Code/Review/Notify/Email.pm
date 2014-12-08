@@ -83,7 +83,7 @@ sub send {
 
         # Messaging
         if( exists $ENV{GCR_NOTIFY_EMAIL_DISABLED} && $ENV{GCR_NOTIFY_EMAIL_DISABLED} ){
-            output({color=>'cyan',sticky=>1}, "Sending of email disable by environment variable, GCR_NOTIFY_EMAIL_DISABLED.");
+            output({color=>'cyan',sticky=>1}, "Sending of email disabled by environment variable, GCR_NOTIFY_EMAIL_DISABLED.");
             return;
         }
         verbose({color=>'cyan'}, "Sending notification email.");

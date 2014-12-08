@@ -197,7 +197,7 @@ sub concerns {
     my ($commit) = @_;
 
     my %reasons = (
-        incorrect => "Calculations are incorect.",
+        incorrect => "Calculations are incorrect.",
         unclear   => "Code is not clear, requires more information from the author.",
         other     => 'Other',
     );
