@@ -12,12 +12,12 @@ use POSIX qw(strftime);
 use Text::Wrap qw(fill);
 use Time::Local;
 
-my $default_age = 7;
+my $default_age = 2;
 sub opt_spec {
     return (
-           ['age:i',    "Age of commits in days to consider overdue default: $default_age", { default => $default_age } ],
-           ['all',      "Run report for all profiles." ],
-           ['notify',   "In addition to printing the list, invoke the Notify chain."],
+           ['age|days:i', "Age of commits in days to consider overdue default: $default_age", { default => $default_age } ],
+           ['all',        "Run report for all profiles." ],
+           ['notify',     "In addition to printing the list, invoke the Notify chain."],
     );
 }
 
@@ -43,8 +43,8 @@ sub execute {
     push @ls, $opt->{all} ? '**.patch' : sprintf('%s/**.patch', $profile);
 
     # Look for commits that aren't approved and older than X days
-    my @overdue = sort { $a->{date} cmp $b->{date} }
-                    grep { days_old($_->{date}) >= $opt->{age} }
+    my @overdue = sort { $a->{select_date} cmp $b->{select_date} }
+                    grep { days_old($_->{select_date}) >= $opt->{age} }
                     map { $_=gcr_commit_info(basename $_) }
                     grep !/Approved/, $audit->run(@ls);
 
@@ -56,7 +56,7 @@ sub execute {
             my $p = exists $commit->{profile} && $commit->{profile} ? $commit->{profile} : '__UNKNOWN__';
             $profiles{$p} ||= {total => 0};
             $profiles{$p}->{total}++;
-            my $month = join('-', (split /[.\-]/, $commit->{date})[0,1]);
+            my $month = join('-', (split '-', $commit->{select_date})[0,1]);
             $profiles{$p}->{$month} ||= 0;
             $profiles{$p}->{$month}++;
             $current_concerns{$commit->{sha1}} = 1 if $commit->{state} eq 'concerns';
@@ -136,22 +136,22 @@ sub execute {
 }
 
 my $NOW = timelocal(0,0,0,(localtime)[3,4,5]);
-my %_Ages;
+my %_Ages = ();
 sub days_old {
     my ($date) = @_;
 
     return $_Ages{$date} if exists $_Ages{$date};
 
-    my @parts = reverse split /[\-.]/, $date;
-    # Don't handle weird shit
-    return unless @parts == 3;
-
-    # Month needs to be 0 based, not 1 based.
+    # Get Y, M, D parts.
+    my @parts = reverse split '-', $date;
+    # Decrement Month
     $parts[1]--;
+
     my $epoch = timelocal(0,0,0,@parts);
     my $diff  = $NOW - $epoch;
+    my $days_old = int($diff / 86400);
 
-    return $_Ages{$date} = int($diff / 86400);
+    return $_Ages{$date} = $days_old;
 }
 
 1;
