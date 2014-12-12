@@ -5,19 +5,41 @@ use strict;
 use warnings;
 
 use CLI::Helpers qw(:all);
+use Getopt::Long;
 use Git::Code::Review::Utilities qw(:all);
 use File::Spec;
 use Sys::Hostname qw(hostname);
 use Template;
 use Template::Stash;
 
+# Module Loading
 use Module::Pluggable (
     search_path => [ 'Git::Code::Review::Notify' ],
     except      => 'Git::Code::Review::Notify::Templates',
     sub_name    => 'notifications',
     require     => 1,
 );
+
+# Exporting
+use Sub::Exporter -setup => {
+    exports => [
+        qw(
+            notify notify_config
+            notify_enabled
+        )
+    ],
+};
+
+# Global Options
 my $PROFILE = gcr_profile();
+our $_OPTIONS_PARSED;
+my %_OPTIONS=();
+if( !$_OPTIONS_PARSED ) {
+    GetOptions(\%_OPTIONS,
+        'notify'
+    );
+}
+notify_enbled() if $_OPTIONS{notify} && $_OPTIONS{notify};
 
 # Configure the Templates
 my @TEMPLATE_DIR = ( gcr_mkdir('.code-review','templates') );
@@ -31,49 +53,51 @@ my $TEMPLATE = Template->new({
     INCLUDE_PATH => \@TEMPLATE_DIR,
 });
 
+# Do we enable remote notification?
+sub notify_enabled { $ENV{GCR_NOTIFY_ENABLED} = 1 }
+
+sub notify_config {
+    my $section = shift @_;
+    my %local = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    my %global = gcr_config();
+
+    # Handle Setup
+    if( exists $global{notification} ) {
+        # First load global
+        foreach my $full_name (grep /^global\./, keys %{ $global{notification} }) {
+            my $path = $full_name;
+            $path =~ s/^global\.//;
+            _add_value(\%local,$path => $global{notification}->{$full_name});
+        }
+        # Now try the specifics
+        foreach my $full_name (grep /^template\.$section\./, keys %{ $global{notification} }) {
+            my $path = $full_name;
+            $path =~ s/^template\.$section\.//;
+            _add_value(\%local,$path => $global{notification}->{$full_name});
+        }
+    }
+    return wantarray ? %local : \%local;
+}
+
 sub notify {
     shift @_ if ref $_[0];
     my ($name,$opts) = @_;
     my %config = gcr_config();
 
     debug({color=>'magenta'}, "called Git::Code::Review::Notify::notify");
-    debug_var($opts);
-    debug("Template search path");
-    debug_var(\@TEMPLATE_DIR);
 
     # Plugin Settings
-    my %Plugins = (
+    my %Plugins = notify_config($name,
         cc => $config{user},
+        exists $opts->{commit} && exists $opts->{commit}{author} ? (to => $opts->{commit}{author}) : ()
     );
 
-    # Handle Setup
-    if( exists $config{notification} ) {
-        # First load global
-        foreach my $full_name (grep /^global\./, keys %{ $config{notification} }) {
-            my $path = $full_name;
-            $path =~ s/^global\.//;
-            _add_value(\%Plugins,$path => $config{notification}->{$full_name});
-        }
-        # Now try the specifics
-        foreach my $full_name (grep /^template\.$name\./, keys %{ $config{notification} }) {
-            my $path = $full_name;
-            $path =~ s/^template\.$name\.//;
-            _add_value(\%Plugins,$path => $config{notification}->{$full_name});
-        }
-        # If this about a commit, we make the author a 'to'
-        if( exists $opts->{commit} && exists $opts->{commit}{author} ) {
-            _add_value(\%Plugins,to => $opts->{commit}{author});
-        }
-    }
     $Plugins{from} = $config{user} unless exists $Plugins{from};
-    debug_var(\%Plugins);
-
     my %VARIABLES = (
         %{ $opts },
         origins => { map { $_ => gcr_origin($_) } qw(audit source) },
         config  => \%config,
     );
-    debug_var(\%VARIABLES);
 
     # Install Templates
     my %tmpl = Git::Code::Review::Notify::Templates::_install_templates();
@@ -304,7 +328,7 @@ my %_DEFAULTS = (
         [% FOREACH profile IN profiles.keys.sort -%]
         [% NEXT IF !profiles.$profile.exists('total') -%]
         [% NEXT IF profiles.$profile.total <= 0 -%]
-        [% profile %]: [% profiles.$profile.total %]
+        [% profile %]: [% profiles.$profile.total %] - [% contacts.$profile.join(', ') %]
         [% FOREACH month IN profiles.$profile.keys.sort -%]
             [%- NEXT IF month == "total" -%]
             [% month %]: [% profiles.$profile.$month %]

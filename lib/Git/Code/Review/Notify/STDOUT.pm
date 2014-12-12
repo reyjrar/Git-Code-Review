@@ -5,7 +5,10 @@ use CLI::Helpers qw(:output);
 sub send {
     shift @_ if ref $_[0] || $_[0] eq __PACKAGE__;
     my %config = @_;
-    output({data=>1}, $config{message});
+    my $message = delete $config{message};
+    verbose({color=>'cyan'}, "Config containted: " . join(', ', sort keys %config));
+    debug_var(\%config);
+    output({data=>1}, $message);
 }
 
 1;

@@ -6,7 +6,7 @@ use warnings;
 use CLI::Helpers qw(:all);
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
-use Git::Code::Review::Notify;
+use Git::Code::Review::Notify qw(notify_enabled);
 use POSIX qw(strftime);
 use YAML;
 
@@ -22,6 +22,9 @@ my %SEARCH = (
     path   => \&log_params_path,
     author => \&log_params_author,
 );
+
+# Selections will always notify
+$ENV{GCR_NOTIFY_ENABLE}=1;
 
 sub opt_spec {
     return (
@@ -55,6 +58,7 @@ sub execute {
     debug_var($opt);
 
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+    notify_enabled();
 
     # Git Log Options
     my @options = (

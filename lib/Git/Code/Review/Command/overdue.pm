@@ -5,8 +5,9 @@ use warnings;
 
 use CLI::Helpers qw(:all);
 use File::Basename;
+use Config::GitLike;
 use Git::Code::Review::Utilities qw(:all);
-use Git::Code::Review::Notify;
+use Git::Code::Review::Notify qw(notify);
 use Git::Code::Review -command;
 use POSIX qw(strftime);
 use Text::Wrap qw(fill);
@@ -17,7 +18,6 @@ sub opt_spec {
     return (
            ['age|days:i', "Age of commits in days to consider overdue default: $default_age", { default => $default_age } ],
            ['all',        "Run report for all profiles." ],
-           ['notify',     "In addition to printing the list, invoke the Notify chain."],
     );
 }
 
@@ -52,6 +52,7 @@ sub execute {
         # Calculate how many are overdue by profile
         my %profiles =  map { $_ => { total => 0 } } $opt->{all} ? gcr_profiles() : $profile;
         my %current_concerns = ();
+        my %contacts = ();
         foreach my $commit (@overdue) {
             my $p = exists $commit->{profile} && $commit->{profile} ? $commit->{profile} : '__UNKNOWN__';
             $profiles{$p} ||= {total => 0};
@@ -108,21 +109,40 @@ sub execute {
                 },
             };
         }
-        # Disable some notifications
-        foreach my $remote (qw(JIRA EMAIL)) {
-            $ENV{"GCR_NOTIFY_${remote}_DISABLED"} = 1 unless $opt->{notify};
-        }
 
+        # Grab contact information
+        foreach my $profile (keys %profiles) {
+            my @configs = (
+                File::Spec->catfile(gcr_dir(),'.code-review','profiles',$profile,'notification.config'),
+                File::Spec->catfile(gcr_dir(),'.code-review','notification.config')
+            );
+            my %c = ();
+            foreach my $config_file(@configs) {
+                next unless -f $config_file;
+                my $config;
+                my $rc = eval {
+                    $config = Config::GitLike->load_file($config_file);
+                    1;
+                };
+                next unless $rc == 1;
+                next unless exists $config->{'template.select.to'};
+                $c{$_} = 1 for (ref $config->{'template.select.to'} eq 'ARRAY' ? @{ $config->{'template.select.to'} }
+                                                                               : $config->{'template.select.to'}
+                );
+            }
+            $contacts{$profile} = scalar(keys %c) ? [ sort keys %c ] : [qw(NONE)];
+        }
         output({color=>'cyan',clear=>1},
             '=*'x40,
             sprintf("Overdue commits (older than %d days)", $opt->{age}),
             '=*'x40,
         );
-        Git::Code::Review::Notify::notify(overdue => {
+        notify(overdue => {
             options  => $opt,
             profiles => \%profiles,
             commits  => \@overdue,
             concerns => \%concerns,
+            contacts => \%contacts,
         });
     }
     else {
