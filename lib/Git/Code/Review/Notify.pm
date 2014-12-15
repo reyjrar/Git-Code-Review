@@ -39,7 +39,7 @@ if( !$_OPTIONS_PARSED ) {
         'notify'
     );
 }
-notify_enbled() if $_OPTIONS{notify} && $_OPTIONS{notify};
+notify_enabled() if $_OPTIONS{notify} && $_OPTIONS{notify};
 
 # Configure the Templates
 my @TEMPLATE_DIR = ( gcr_mkdir('.code-review','templates') );

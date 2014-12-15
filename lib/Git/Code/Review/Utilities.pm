@@ -407,11 +407,11 @@ sub gcr_commit_info {
         author       => _get_author($matches[0]),
         profile      => _get_commit_profile($matches[0]),
         reviewer     => $CFG{user},
-        select_date  => _get_commit_select_date($matches[0]),
         source_repo  => gcr_origin('source'),
         audit_repo   => gcr_origin('audit'),
         sha1         => _get_sha1(basename($matches[0])),
     );
+    $commit{select_date} = _get_commit_select_date($commit{sha1});
 
     return wantarray ? %commit : \%commit;
 }
@@ -916,19 +916,28 @@ sub _get_commit_date {
 Figure out the commit date.
 
 =cut
+my %_selections = ();
 sub _get_commit_select_date {
-    my ($current_path) = @_;
+    my ($sha1) = @_;
 
-    my $audit = gcr_repo();
-    my @log_options = qw(--reverse -F --grep);
-    push @log_options, "state: select", '--', sprintf('**%s', basename($current_path));
+    # Better cache this once per run
+    if(!keys %_selections) {
+        my $audit = gcr_repo();
+        my @log_options = qw(--reverse -F --grep);
+        push @log_options, "state: select";
 
-    my $logs = $audit->log(@log_options);
-    my $log = $logs->next;      # Only care about the first
+        my $logs = $audit->log(@log_options);
+        while(my $log = $logs->next) {
+            my $date = strftime( '%F', localtime($log->author_localtime));
+            my @commits = map { _get_sha1(basename($_)) } grep { /\.patch$/ } $audit->run(qw(diff-tree --no-commit-id --name-only -r), $log->commit);
+            foreach my $commit (@commits) {
+                next if exists $_selections{$commit};
+                $_selections{$commit} = $date;
+            }
+        }
+    }
 
-    return unless defined $log;
-    my @lt = localtime($log->author_localtime);
-    return strftime('%F', @lt);
+    return exists $_selections{$sha1} ? $_selections{$sha1} : '1970-01-01';
 }
 
 

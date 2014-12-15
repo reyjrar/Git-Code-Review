@@ -38,11 +38,12 @@ sub execute {
     my $profile = gcr_profile();
     gcr_reset();
 
-    my @list = grep /\.patch$/, $audit->run('ls-files');
+    my @list = $audit->run(qw(ls-files -- **.patch));
     if( @list ) {
         my %states = ();
         my %profiles = ();
-        my @commits = grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} } map { $_=gcr_commit_info( basename $_ ) } @list;
+        my @commits = grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} }
+                        map { debug("getting info $_"); $_=gcr_commit_info( basename $_ ) } @list;
         output({color=>'cyan'}, sprintf "-[ Commits in the Audit %s:: %s ]-",
             scalar(keys %SHOW) ? '(' . join(',', sort keys %SHOW) . ') ' : '',
             gcr_origin('audit')
