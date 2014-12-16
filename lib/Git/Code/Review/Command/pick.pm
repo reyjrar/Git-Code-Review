@@ -210,6 +210,7 @@ sub concerns {
 
     # Do notify by email
     Git::Code::Review::Notify::notify(concerns => {
+        priority => 'high',
         commit => $commit,
         reason => {
             short   => $reason,

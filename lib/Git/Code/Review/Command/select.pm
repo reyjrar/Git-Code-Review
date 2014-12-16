@@ -23,9 +23,6 @@ my %SEARCH = (
     author => \&log_params_author,
 );
 
-# Selections will always notify
-$ENV{GCR_NOTIFY_ENABLE}=1;
-
 sub opt_spec {
     return (
         ['noop',       "Just run a sample selection."],
@@ -185,6 +182,7 @@ sub execute {
 
         # Notify
         Git::Code::Review::Notify::notify(select => {
+            priority => 'high',
             pool => {
                 matches   => \%matches,
                 total     => scalar(keys %pool),

@@ -17,6 +17,7 @@ my $default_age = 2;
 sub opt_spec {
     return (
            ['age|days:i', "Age of commits in days to consider overdue default: $default_age", { default => $default_age } ],
+           ['critical',   "Set high priority and enable acrimonious excess in verbage." ],
            ['all',        "Run report for all profiles." ],
     );
 }
@@ -138,6 +139,7 @@ sub execute {
             '=*'x40,
         );
         notify(overdue => {
+            priority => exists $opt->{critical} ? 'high' : 'normal',
             options  => $opt,
             profiles => \%profiles,
             commits  => \@overdue,
