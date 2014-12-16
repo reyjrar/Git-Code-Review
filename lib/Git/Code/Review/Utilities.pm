@@ -689,7 +689,7 @@ sub gcr_commit_message {
     my %details = (
         context => {
             pid      => $$,
-            hostanme => hostname(),
+            hostname => hostname(),
             pwd      => getcwd,
         },
     );
