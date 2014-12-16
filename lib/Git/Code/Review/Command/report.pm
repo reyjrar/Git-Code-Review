@@ -120,6 +120,7 @@ sub execute {
     my @details  = ();
     my %concerns = ();
     my %selected = ();
+    my %reviewers = ();
 
     # Generate the log entries
     my   @log_options = qw(--reverse --stat);
@@ -211,20 +212,28 @@ sub execute {
             };
         }
         elsif( $data->{state} eq 'approved' || $data->{state} eq 'comments' ) {
-            next unless exists $concerns{$sha1};
-
-            if ( $data->{state} eq 'approved' && $date le $last_month ) {
-                delete $concerns{$sha1};
+            if( $data->{state} eq 'approved' && $date ge $last_month && $date le $opt->{until}) {
+                # Collect Reviewer Information
+                $reviewers{$commit->{profile}} ||= {};
+                $reviewers{$commit->{profile}}{$log->author_email} ||= 0;
+                $reviewers{$commit->{profile}}{$log->author_email}++;
             }
-            else {
-                $concerns{$sha1}->{log} ||= [];
-                push @{$concerns{$sha1}->{log}}, {
-                    date        => $date,
-                    state       => $data->{state},
-                    reason      => $data->{reason},
-                    by          => $data->{reviewer},
-                    explanation => $data->{message},
-                };
+
+            if(exists $concerns{$sha1}) {
+                if ( $data->{state} eq 'approved' && $date le $last_month ) {
+                    delete $concerns{$sha1};
+                }
+                else {
+                    $concerns{$sha1}->{log} ||= [];
+                    push @{$concerns{$sha1}->{log}}, {
+                        date        => $date,
+                        state       => $data->{state},
+                        reason      => $data->{reason},
+                        by          => $data->{reviewer},
+                        explanation => $data->{message},
+                    };
+                }
+
             }
         }
     }
@@ -239,14 +248,15 @@ sub execute {
     );
 
     Git::Code::Review::Notify::notify(report => {
-        options  => $opt,
-        month    => $last_month,
-        commits  => \%commits,
-        monthly  => \%monthly,
-        concerns => \%concerns,
-        profile  => $opt->{all} ? 'all' : $profile,
-        selected => \%selected, ,
-        history  => \@details,
+        options   => $opt,
+        month     => $last_month,
+        commits   => \%commits,
+        monthly   => \%monthly,
+        concerns  => \%concerns,
+        profile   => $opt->{all} ? 'all' : $profile,
+        selected  => \%selected, ,
+        history   => \@details,
+        reviewers => \%reviewers,
     });
 }
 

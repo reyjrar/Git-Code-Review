@@ -323,6 +323,20 @@ my %_DEFAULTS = (
         [% ELSE -%]
             (/) No concerns raised.
         [% END -%]
+
+
+        Reviewers by profile for [% month %] through [% options.until %]
+        ----
+        [% IF reviewers.keys.size > 0 -%]
+        [% FOREACH profile IN reviewers.keys.sort -%]
+        [% profile %]:
+        [% FOREACH email IN reviewers.$profile.nsort_by_value.reverse -%]
+          * [% email %] => [% reviewers.$profile.$email %]
+        [% END -%]
+        [% END %]
+        [% ELSE -%]
+            (i) Nothing to report.
+        [% END -%]
     },
     overdue => q{
         # Overview of Commits older than [% options.age %] days old.
