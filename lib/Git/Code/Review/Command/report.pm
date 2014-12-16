@@ -183,7 +183,6 @@ sub execute {
         # Profile Specific Details
         my $commit;
         if( defined $sha1 ) {
-            $data->{profile} ||= gcr_commit_profile($sha1);
             eval { $commit = gcr_commit_info($sha1) };
         }
         # If there's no commit in play, skip this.

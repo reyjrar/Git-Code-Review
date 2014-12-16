@@ -387,16 +387,23 @@ Retrieves all relevant Git::Code::Review details on the commit
 that matches the string passed in.
 
 =cut
+my %_commit_info;
 sub gcr_commit_info {
     my ($object) = @_;
+
     my $audit = gcr_repo();
     # Object can be a sha1, path in the repo, or patch
-    my ($_line,$_sub) = (caller 1)[2,3];
-
     my @matches = grep /\.patch$/, $audit->run('ls-files', "*$object*");
     if( @matches != 1 ) {
-        die sprintf('gcr_commit_info("%s") %s commit object: %s line %d', $object, (@matches > 1 ? 'ambiguous' : 'unknown'), $_sub, $_line);
+        die sprintf('gcr_commit_info("%s") %s commit object', $object, (@matches > 1 ? 'ambiguous' : 'unknown'));
     }
+
+    # Caching, do this only once per run
+    my $base = basename($matches[0]);
+    if( exists $_commit_info{$base} ) {
+        return wantarray ? %{ $_commit_info{$base} } : \%{ $_commit_info{$base} };
+    }
+
     my %commit = (
         base         => basename($matches[0]),
         date         => _get_commit_date($matches[0]),
@@ -413,6 +420,7 @@ sub gcr_commit_info {
     );
     $commit{select_date} = _get_commit_select_date($commit{sha1});
 
+    $_commit_info{$base} = \%commit;
     return wantarray ? %commit : \%commit;
 }
 
@@ -423,15 +431,12 @@ Find and return the profile for the commit.
 =cut
 sub gcr_commit_profile {
     my ($object) = @_;
-    my ($_line,$_sub) = (caller 1)[2,3];
-
-    die "Invalid call to gcr_commit_profile() from  $_sub at $_line" unless $object;
 
     my $audit = gcr_repo();
     # Object can be a sha1, path in the repo, or patch
     my @matches = $audit->run('ls-files', "*$object*");
     if( @matches != 1 ) {
-        verbose({color=>'yellow',indent=>1}, sprintf 'gcr_commit_profile("%s") %s commit object from %s line %d', $object, (@matches > 1 ? 'ambiguous' : 'unknown'), $_sub, $_line);
+        verbose({color=>'yellow',indent=>1}, sprintf 'gcr_commit_profile("%s") %s commit object from', $object, (@matches > 1 ? 'ambiguous' : 'unknown'));
         return;
     }
 
@@ -720,7 +725,6 @@ the Audit Repository.
 sub gcr_audit_commit {
     my($audit_sha1) = @_;
     my $audit = gcr_repo();
-    my ($_line,$_sub) = (caller 1)[2,3];
 
     # Get a list of files in the commit that end in .patch
     my %c = map { $_ => 1 }
@@ -729,7 +733,7 @@ sub gcr_audit_commit {
 
     my @commits = keys %c;
     if(@commits != 1) {
-        verbose({color=>'red',indent=>1}, sprintf "gcr_audit_commit('%s') contains %d source commits (%s - line %d)\n", $audit_sha1, scalar(@commits), $_sub, $_line );
+        verbose({color=>'red',indent=>1}, sprintf "gcr_audit_commit('%s') contains %d source commits", $audit_sha1, scalar(@commits));
         return;
     }
 
@@ -745,7 +749,6 @@ the Audit Repository.
 sub gcr_audit_files {
     my($audit_sha1) = @_;
     my $audit = gcr_repo();
-    my ($_line,$_sub) = (caller 1)[2,3];
 
     # Get a list of files in the commit that end in .patch
     my @files = grep { /\.patch$/ } $audit->run(qw(diff-tree --no-commit-id --name-only -r), $audit_sha1);
