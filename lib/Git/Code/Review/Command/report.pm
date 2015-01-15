@@ -55,6 +55,11 @@ sub execute {
     my @parts = reverse split /-/, $opt->{until};
     $parts[-2]--;   # Adjust the Month for 0..11
     $parts[-2]--;   # Now, last month!
+    # Last year
+    if($parts[-2] < 0) {
+        $parts[-2]=0;
+        $parts[0]--;
+    }
     $parts[0] = 1;  # The first of the month
     unshift @parts, 0,0,0;
     my $epoch_historic = timelocal(@parts);
