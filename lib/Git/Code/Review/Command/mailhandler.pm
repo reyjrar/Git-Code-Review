@@ -162,7 +162,7 @@ sub execute {
             if ( my ($key,$value) = (/GCR_([^=]+)=(\S+)/) ) {
                 $vars{lc $key} = $value;
             }
-            elsif( my ($fixed) = (/FIX=([a-f0-9]{6,40})/) ) {
+            elsif( my ($fixed) = (/FIX\s*[=:]\s*([a-f0-9]{6,40})/) ) {
                 $vars{fixed} = $fixed;
             }
             elsif( /^\s*>+/ || /^(?:\s*>)?\s*On.*wrote:$/  ) {
