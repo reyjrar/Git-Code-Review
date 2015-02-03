@@ -1,4 +1,4 @@
-# ABSTRACT: Notification by email
+# ABSTRACT: Notification to JIRA
 package Git::Code::Review::Notify::JIRA;
 
 use strict;

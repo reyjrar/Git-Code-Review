@@ -52,17 +52,17 @@ sub execute {
     push @ls, $profile unless $opt->{all};
 
     # Start of last month
-    my @parts = reverse split /-/, $opt->{until};
-    $parts[-2]--;   # Adjust the Month for 0..11
-    $parts[-2]--;   # Now, last month!
-    # Last year
-    if($parts[-2] < 0) {
-        $parts[-2]=0;
-        $parts[0]--;
+    my @parts = qw(year month day);
+    my %d = map { shift @parts => $_ } split /-/, $opt->{until};
+    $d{month} -= 2;   # Adjust the Month for 0..11, and once more for last month
+
+    # Last year, reset to december last year
+    if($d{month} < 0) {
+        $d{month} = 11;
+        $d{year}--;
     }
-    $parts[0] = 1;  # The first of the month
-    unshift @parts, 0,0,0;
-    my $epoch_historic = timelocal(@parts);
+    debug({color=>'magenta'}, sprintf "MONTH DETERMINED: %4d-%2d-%2d", @d{qw{year month day}});
+    my $epoch_historic = timelocal(0,0,0,1,@d{qw(month year)});
     my $last_month = strftime('%F', localtime($epoch_historic));
 
     my @commits  = ();
