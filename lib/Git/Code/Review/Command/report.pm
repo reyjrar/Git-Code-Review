@@ -61,9 +61,9 @@ sub execute {
         $d{month} = 11;
         $d{year}--;
     }
-    debug({color=>'magenta'}, sprintf "MONTH DETERMINED: %4d-%2d-%2d", @d{qw{year month day}});
     my $epoch_historic = timelocal(0,0,0,1,@d{qw(month year)});
     my $last_month = strftime('%F', localtime($epoch_historic));
+    debug({color=>'magenta'}, "MONTH DETERMINED: $last_month");
 
     my @commits  = ();
     if( $opt->{until} ne $NOW ) {
