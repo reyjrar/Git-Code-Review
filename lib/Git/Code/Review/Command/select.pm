@@ -159,7 +159,7 @@ sub execute {
             my $fh = IO::File->new();
             if( $fh->open($file,"w") ) {
                 # Add the content
-                print $fh "$_\n" for $source->run(show => $sha1, '-w', '--date=iso');
+                print $fh "$_\n" for $source->run(show => $sha1, '-w', '--date=iso', '--pretty=fuller');
                 verbose("+ Added $file to the Audit.");
                 close $fh;
                 # remove the absolute path pieces

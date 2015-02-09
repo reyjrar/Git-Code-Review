@@ -908,7 +908,7 @@ sub _get_commit_date {
     while( !$ISO ) {
         local $_ = <$fh>;
         last unless defined $_;
-        next unless /^Date:/;
+        next unless /^(Commit)Date:/;
         $ISO = (split /\s+/)[1];
     }
     return $ISO;
