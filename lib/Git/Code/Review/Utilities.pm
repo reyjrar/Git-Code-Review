@@ -905,7 +905,7 @@ sub _get_commit_date {
 
     open(my $fh, "<", $path) or die "_get_commit_date() cannot open $path: $!";
     my $ISO=undef;
-    while( !$ISO ) {
+    while( !defined $ISO ) {
         local $_ = <$fh>;
         last unless defined $_;
         next unless /^(Commit)Date:/;
