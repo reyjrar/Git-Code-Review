@@ -42,7 +42,7 @@ sub execute {
     if( @list ) {
         my %states = ();
         my %profiles = ();
-        my @commits = grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} }
+        my @commits = grep { $_->{select_date} ge $opt->{since} && $_->{select_date} le $opt->{until} }
                         map { debug("getting info $_"); $_=gcr_commit_info( basename $_ ) } @list;
         output({color=>'cyan'}, sprintf "-[ Commits in the Audit %s:: %s ]-",
             scalar(keys %SHOW) ? '(' . join(',', sort keys %SHOW) . ') ' : '',
@@ -75,7 +75,8 @@ sub execute {
             output({indent=>1,color=>$color,data=>1}, join("\t",
                     $commit->{profile},
                     $commit->{state},
-                    $commit->{date},
+                    'authored:' . $commit->{date},
+                    'selected:' . $commit->{select_date},
                     $commit->{sha1},
                     $commit->{author},
                     exists $comments{$commit->{sha1}} ? "(comments:$comments{$commit->{sha1}})" : "",

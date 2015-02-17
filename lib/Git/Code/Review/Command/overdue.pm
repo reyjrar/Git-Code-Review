@@ -58,9 +58,9 @@ sub execute {
             my $p = exists $commit->{profile} && $commit->{profile} ? $commit->{profile} : '__UNKNOWN__';
             $profiles{$p} ||= {total => 0};
             $profiles{$p}->{total}++;
-            my $month = join('-', (split '-', $commit->{select_date})[0,1]);
-            $profiles{$p}->{$month} ||= 0;
-            $profiles{$p}->{$month}++;
+
+            $profiles{$p}->{$commit->{select_date}} ||= [];
+            push @{ $profiles{$p}->{$commit->{select_date}} }, $commit;
             $current_concerns{$commit->{sha1}} = 1 if $commit->{state} eq 'concerns';
         }
 
@@ -142,7 +142,6 @@ sub execute {
             priority => exists $opt->{critical} ? 'high' : 'normal',
             options  => $opt,
             profiles => \%profiles,
-            commits  => \@overdue,
             concerns => \%concerns,
             contacts => \%contacts,
         });
