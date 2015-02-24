@@ -22,7 +22,7 @@ sub description {
     my $DESC = <<"    EOH";
 
     This command is used to initialize an audit repository against a source code
-    repository living elsewhere.  It uses submodules to acheive this.
+    repository living elsewhere.  It uses submodules to achieve this.
 
     Usage:
 
