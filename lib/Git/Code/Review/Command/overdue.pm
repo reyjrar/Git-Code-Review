@@ -112,9 +112,9 @@ sub execute {
         }
 
         # Grab contact information
-        foreach my $profile (keys %profiles) {
+        foreach my $p (keys %profiles) {
             my @configs = (
-                File::Spec->catfile(gcr_dir(),'.code-review','profiles',$profile,'notification.config'),
+                File::Spec->catfile(gcr_dir(),'.code-review','profiles',$p,'notification.config'),
                 File::Spec->catfile(gcr_dir(),'.code-review','notification.config')
             );
             my %c = ();
@@ -126,27 +126,48 @@ sub execute {
                     1;
                 };
                 next unless $rc == 1;
+                # Remove the ignored profiles
+                die "ignore.overdue setting is invalid. Use true/false, 1/0 or yes/no only." if exists $config->{ 'ignore.overdue' } && $config->{ 'ignore.overdue' } !~ m/^\s*(?:1|0|true|false|yes|no)\s*$/i;
+                if ( ( $config->{ 'ignore.overdue' } || '' ) =~ m/^\s*(?:1|true|yes)\s*$/i ) {
+                    # ignore it if configured to ignore unless it was specifically requested
+                    if ( $opt->{all} || $p ne $profile ) {
+                        output({color=>'yellow'}, "Ignoring profile $p");
+                        delete $profiles{ $p };
+                        next;
+                    } else {
+                        output({color=>'yellow'}, "Ignored profile $p was explicitly requested, so ignoring the ignore setting");
+                    }
+                }
                 next unless exists $config->{'template.select.to'};
                 $c{$_} = 1 for (ref $config->{'template.select.to'} eq 'ARRAY' ? @{ $config->{'template.select.to'} }
                                                                                : $config->{'template.select.to'}
                 );
             }
-            $contacts{$profile} = scalar(keys %c) ? [ sort keys %c ] : [qw(NONE)];
+            $contacts{$p} = scalar(keys %c) ? [ sort keys %c ] : [qw(NONE)];
         }
-        output({color=>'cyan',clear=>1},
-            '=*'x40,
-            sprintf("Overdue commits (older than %d days)", $opt->{age}),
-            '=*'x40,
-        );
-        notify(overdue => {
-            priority => exists $opt->{critical} ? 'high' : 'normal',
-            options  => $opt,
-            profiles => \%profiles,
-            concerns => \%concerns,
-            contacts => \%contacts,
-        });
-    }
-    else {
+        my $total = 0;
+        $total += $profiles{$_}->{total} for keys %profiles;
+        if ( $total ) {
+            output({color=>'cyan',clear=>1},
+                '=*'x40,
+                sprintf("Overdue commits (older than %d days)", $opt->{age}),
+                '=*'x40,
+            );
+            notify(overdue => {
+                priority => exists $opt->{critical} ? 'high' : 'normal',
+                options  => $opt,
+                profiles => \%profiles,
+                concerns => \%concerns,
+                contacts => \%contacts,
+            });
+        } else {
+            my $p = $opt->{all} ? 'ALL' : $profile;
+            output({color=>'green'}, sprintf "All commits %d days old and older have been reviewed in (not ignored) profile: %s",
+                $opt->{age},
+                $p
+            );
+        }
+    } else {
         my $p = $opt->{all} ? 'ALL' : $profile;
         output({color=>'green'}, sprintf "All commits %d days old and older have been reviewed in profile: %s",
             $opt->{age},
