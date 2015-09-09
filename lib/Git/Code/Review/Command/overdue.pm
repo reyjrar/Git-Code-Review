@@ -5,8 +5,10 @@ use warnings;
 
 use CLI::Helpers qw(:all);
 use File::Basename;
+use File::Spec;
 use Config::GitLike;
 use Git::Code::Review::Utilities qw(:all);
+use Git::Code::Review::Utilities::Date qw(days_age load_special_days special_age weekdays_age);
 use Git::Code::Review::Notify qw(notify);
 use Git::Code::Review -command;
 use POSIX qw(strftime);
@@ -16,7 +18,9 @@ use Time::Local;
 my $default_age = 2;
 sub opt_spec {
     return (
-           ['age|days:i', "Age of commits in days to consider overdue default: $default_age", { default => $default_age } ],
+           ['age|days:i', "Age of commits in days to consider overdue. Default: $default_age", { default => $default_age } ],
+           ['weekdays',   "Exclude weekend days in age calculations. Default: false / off", { default => 0 } ],
+           ['workdays',   "Exclude weekend and special days specified in .code-review/special-days.txt from age calculations. Default: false / off", { default => 0 } ],
            ['critical',   "Set high priority and enable acrimonious excess in verbage." ],
            ['all',        "Run report for all profiles." ],
     );
@@ -35,17 +39,30 @@ sub execute {
     my($cmd,$opt,$args) = @_;
 
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+    die "You can use weekdays or workdays, but not both!" if $opt->{weekdays} && $opt->{workdays};
     gcr_reset();
 
     my $profile = gcr_profile();
     my $audit   = gcr_repo();
 
+    my ($days_str, $days_old) = $opt->{weekdays} ? ( 'weekdays', \&weekdays_age ) : ( 'days', \&days_age );
+    if ( $opt->{workdays} ) {
+        # load special days to exclude from .code-review/special-days.txt
+        # this location was chosen instead of passing it as a parameter so that changes to the
+        # special-days.txt would leave an audit trail
+        my $holidays_file = File::Spec->catfile(gcr_dir(),'.code-review',"special-days.txt");
+        load_special_days( $holidays_file ) if -f $holidays_file;
+        verbose({color=>'yellow'}, sprintf "Will exclude %d special days from workday age calculations",
+            scalar @{ load_special_days() }
+        );
+        ($days_str, $days_old) = ( 'workdays', \&special_age );
+    }
     my @ls = ( 'ls-files' );
     push @ls, $opt->{all} ? '**.patch' : sprintf('%s/**.patch', $profile);
 
     # Look for commits that aren't approved and older than X days
     my @overdue = sort { $a->{select_date} cmp $b->{select_date} }
-                    grep { days_old($_->{select_date}) >= $opt->{age} }
+                    grep { $days_old->($_->{select_date}) >= $opt->{age} }
                     map { $_=gcr_commit_info(basename $_) }
                     grep !/Approved/, $audit->run(@ls);
 
@@ -135,7 +152,7 @@ sub execute {
         }
         output({color=>'cyan',clear=>1},
             '=*'x40,
-            sprintf("Overdue commits (older than %d days)", $opt->{age}),
+            sprintf("Overdue commits (older than %d %s)", $opt->{age}, $days_str),
             '=*'x40,
         );
         notify(overdue => {
@@ -148,31 +165,13 @@ sub execute {
     }
     else {
         my $p = $opt->{all} ? 'ALL' : $profile;
-        output({color=>'green'}, sprintf "All commits %d days old and older have been reviewed in profile: %s",
+        output({color=>'green'}, sprintf "All commits %d %s old and older have been reviewed in profile: %s",
             $opt->{age},
+            $days_str,
             $p
         );
     }
 
-}
-
-my $NOW = timelocal(0,0,0,(localtime)[3,4,5]);
-my %_Ages = ();
-sub days_old {
-    my ($date) = @_;
-
-    return $_Ages{$date} if exists $_Ages{$date};
-
-    # Get Y, M, D parts.
-    my @parts = reverse split '-', $date;
-    # Decrement Month
-    $parts[1]--;
-
-    my $epoch = timelocal(0,0,0,@parts);
-    my $diff  = $NOW - $epoch;
-    my $days_old = int($diff / 86400);
-
-    return $_Ages{$date} = $days_old;
 }
 
 1;

@@ -1,0 +1,27 @@
+# This is a simple text file containing a list of dates in yyyy-mm-dd format
+# e.g. 2015-04-01
+# lines that begin with a # are ignored, you can also use a # at the end of the line
+# you can comma separate multiple dates on a single line or on multiple lines or both
+# white space is usually ignored
+
+#2015-04-01  # April fools day, no we do not give holiday to people for this
+
+2015-12-25  #Christmas 2015, duplicated
+    2015-01-01  # New Year's Day
+
+2016-01-01  # new years day for next year
+
+2016#-01-02 # invalid, should be rejected
+2015-04-03 # Friday	Good Friday
+2015-04-05 # Sunday	Easter Sunday
+2015-04-27 # Monday	King's Day
+2015-04-06 # Monday	Easter Monday
+2015-05-05 # Tuesday	Liberation Day
+2015-05-14 # Thursday	Ascension Day
+2015-05-24 # Sunday	Pentecost
+2015-05-25 # Monday	Whit Monday
+2015-12-25 # Friday	Christmas Day
+2015-12-26 # Saturday	2nd Day of Christmas
+
+2016-05-05,2016-05-15 , 2016-05-16, 2016-12-25 , 2016-12-26# trying out the csv parsing May 15 and Christmas are weekend days
+# that's it, pretty simple huh?
