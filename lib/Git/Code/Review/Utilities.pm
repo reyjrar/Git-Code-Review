@@ -86,7 +86,7 @@ my %CFG = (
     editor => exists $ENV{EDITOR} && exists $EDITOR{$ENV{EDITOR}} ? $ENV{EDITOR} : 'vim',
 );
 my %PATHS   = (
-    audit  => getcwd(),
+    audit  => $AUDITDIR,
     source => File::Spec->catdir($AUDITDIR,'source'),
 );
 my %ORIGINS = ();
@@ -695,7 +695,7 @@ sub gcr_commit_message {
         context => {
             pid      => $$,
             hostname => hostname(),
-            pwd      => getcwd,
+            pwd      => $AUDITDIR,
         },
     );
     my %cfg = gcr_config();
