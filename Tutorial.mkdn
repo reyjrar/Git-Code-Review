@@ -4,7 +4,7 @@ Git::Code::Review::Tutorial - How to work Git::Code::Review
 
 # VERSION
 
-version 2.1
+version 2.2
 
 # MOTIVATION
 
@@ -32,8 +32,8 @@ cannot trust the code of your developers to go live without review, this tool is
 
 # HOWTO
 
-Git::Code::Review requires you to use it with a repository with a remote __origin__ configured
-on a branch __master__.  This makes coordinating audits with multiple reviewers very easy.  The first step
+Git::Code::Review requires you to use it with a repository with a remote **origin** configured
+on a branch **master**.  This makes coordinating audits with multiple reviewers very easy.  The first step
 is to setup the audit repository.
 
     $ mkdir /repos/financial-code-audit.git
@@ -78,7 +78,7 @@ From there you can configure settings for the selection or notification.
 
 ## Selection
 
-To select commits we use the __select__ command.
+To select commits we use the **select** command.
 
     $ git-code-review select --since 2014-04-01 --number 15
 
@@ -124,9 +124,9 @@ Pick defaults to using a randomized ordering for returning commits.  This is int
 reviewing code at the same time.  Not wanting to lock you into our madness, you can re-order the pick using the order which has
 3 options:
 
-- __asc__ - By date ascending
-- __desc__ - By date descending
-- __random__ - The default, pick a random commit
+- **asc** - By date ascending
+- **desc** - By date descending
+- **random** - The default, pick a random commit
 
     To specify you'd like the earliest available commit, use:
 
@@ -232,7 +232,7 @@ the commit for another time or another author.
 
 # AUTHOR
 
-Brad Lhotsky <brad@divisionbyzero.net>
+Brad Lhotsky &lt;brad@divisionbyzero.net>
 
 # COPYRIGHT AND LICENSE
 

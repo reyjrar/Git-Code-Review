@@ -4,14 +4,14 @@ Git::Code::Review - Tools for performing code review using Git as the backend
 
 # VERSION
 
-version 2.1
+version 2.2
 
 # SYNOPSIS
 
 This module installs a new command to allow you to perform a tracked code review
 using a git repository as the storage and communication medium for the audit.
 
-This is intended to be used as a __post-commit__ code review tool.
+This is intended to be used as a **post-commit** code review tool.
 
 # INSTALL
 
@@ -48,7 +48,7 @@ And each command has a basic overview of it's own options and uses.
 
 # AUTHOR
 
-Brad Lhotsky <brad@divisionbyzero.net>
+Brad Lhotsky &lt;brad@divisionbyzero.net>
 
 # COPYRIGHT AND LICENSE
 
@@ -57,3 +57,35 @@ This software is Copyright (c) 2014 by Brad Lhotsky.
 This is free software, licensed under:
 
     The (three-clause) BSD License
+
+# CONTRIBUTORS
+
+- Daniel Ostermeier &lt;daniel.ostermeier@gmail.com>
+- Dennis Kaarsemaker &lt;dennis@kaarsemaker.net>
+- Rafael Garcia-Suarez &lt;rgs@consttype.org>
+- Samit Badle <Samit.Badle@gmail.com>
+- Sawyer X &lt;xsawyerx@cpan.org>
+
+# SUPPORT
+
+## Websites
+
+The following websites have more information about this module, and may be of help to you. As always,
+in addition to those websites please use your favorite search engine to discover more resources.
+
+- MetaCPAN
+
+    A modern, open-source CPAN search engine, useful to view POD in HTML format.
+
+    [http://metacpan.org/release/Git-Code-Review](http://metacpan.org/release/Git-Code-Review)
+
+- RT: CPAN's Bug Tracker
+
+    The RT ( Request Tracker ) website is the default bug/issue tracking system for CPAN.
+
+    [https://rt.cpan.org/Public/Dist/Display.html?Name=Git-Code-Review](https://rt.cpan.org/Public/Dist/Display.html?Name=Git-Code-Review)
+
+## Source Code
+
+This module's source code is available by visiting:
+[https://github.com/reyjrar/Git-Code-Review](https://github.com/reyjrar/Git-Code-Review)
