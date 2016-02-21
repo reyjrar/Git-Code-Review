@@ -1,4 +1,5 @@
 package Git::Code::Review::Utilities::Date;
+# ABSTRACT: Date calculation and manipulations
 use strict;
 use warnings;
 
