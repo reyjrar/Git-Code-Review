@@ -39,7 +39,8 @@ sub send {
     die "Message empty" unless defined $data && length $data > 0;
 
     # Set urgency
-    if($config{priority} eq 'high') {
+    my $priority = $config{priority} // '';
+    if($priority eq 'high') {
         $config{headers}->{Importance} = 'High';
         $config{headers}->{Priority}   = 'urgent';
     }
@@ -48,7 +49,7 @@ sub send {
     if( defined $data && length $data ) {
         debug("Evaluated template and received: ", $data);
         my $subject  = sprintf('%sGit::Code::Review %s %s=%s',
-            $config{priority} eq 'high' ? '[CRITICAL] ' : '',
+            $priority eq 'high' ? '[CRITICAL] ' : '',
             uc $config{name},
             (exists $config{commit} ? "COMMIT" : "REPO"),
             (exists $config{commit} ? $config{commit}->{sha1} : gcr_origin('source')),
