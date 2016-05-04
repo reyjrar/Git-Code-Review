@@ -238,7 +238,7 @@ sub execute {
 
     output({color=>'cyan'},
         '=*'x40,
-        sprintf('Git::Code::Review Report for %s through %s', $opt->{since}, $opt->{until}),
+        sprintf('Git::Code::Review Report for %s through %s', ($opt->{since} // ''), $opt->{until}),
         '=*'x40,
         '',
     );
