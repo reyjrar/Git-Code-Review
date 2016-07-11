@@ -63,7 +63,7 @@ sub weekdays_age {
 
     my $epoch = yyyy_mm_dd_to_gmepoch( $date );
     my $age = days_age( $date );
-    return $_Weekday_Ages{ $date } = $age - weekends( ( localtime( $epoch ) )[ 6 ], $age );
+    return $_Weekday_Ages{ $date } = $age - weekends( ( gmtime( $epoch ) )[ 6 ], $age );
 }
 
 my @_Special_Days = ();

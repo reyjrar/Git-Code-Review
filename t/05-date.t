@@ -225,9 +225,9 @@ verify_yyyy_mm_dd_to_gmepoch( 400 );
 verify_weekends( 400 );
 verify_age_dst();
 verify_age( 400 );
-#verify_weekdays_age( 400 );
+verify_weekdays_age( 400 );
 verify_special_days();
-#verify_special_age( 400 );
+verify_special_age( 400 );
 done_testing();
 
 
