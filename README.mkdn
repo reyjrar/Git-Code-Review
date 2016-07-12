@@ -4,7 +4,7 @@ Git::Code::Review - Tools for performing code review using Git as the backend
 
 # VERSION
 
-version 2.2
+version 2.3
 
 # SYNOPSIS
 
@@ -65,6 +65,7 @@ This is free software, licensed under:
 - Rafael Garcia-Suarez &lt;rgs@consttype.org>
 - Samit Badle <Samit.Badle@gmail.com>
 - Sawyer X &lt;xsawyerx@cpan.org>
+- Tigin Kaptanoglu &lt;tigin.kaptanoglu@booking.com>
 
 # SUPPORT
 
