@@ -44,7 +44,7 @@ sub execute {
         output({color=>'red'}, "Please specify a sha1 or .patch file to comment on.");
         exit 1;
     }
-    my @list = grep { !/Locked/ } $audit->run('ls-files',"*$match*");
+    my @list = grep { !/Locked/ } $audit->run('ls-files',"*$match*.patch");
     if( @list == 0 ) {
         output({color=>"red"}, "Unable to locate any unlocked files matching '$match'");
         exit 0;
