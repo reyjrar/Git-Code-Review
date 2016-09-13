@@ -12,7 +12,6 @@ use CLI::Helpers qw(
 use Config::Auto;
 use DateTime::Format::Mail;
 use Email::Address;
-use Email::Simple;
 use Email::MIME;
 use File::Spec;
 use Git::Code::Review -command;
@@ -167,8 +166,6 @@ sub execute {
         # Reset key environment variables
         delete $ENV{$_} for @EnvRelative;
         debug({indent=>1}, "Processing $msg");
-        # Basic Accessors
-        my $email = Email::Simple->new($imap->message_string($msg));
         # For handling multipart messages without fucking everything up
         my $mime  = Email::MIME->new($imap->message_string($msg));
 
@@ -190,7 +187,7 @@ sub execute {
         $body ||= $mime->body_str;
         debug({color=>'magenta'}, $body);
 
-        my %headers = $email->header_pairs;
+        my %headers = $mime->header_raw_pairs;
 
         next if exists $headers{'X-Autoreply-Sent-To'};          # Out Of Office
         next if exists $headers{'X-Autorespond'};                # Out Of Office
