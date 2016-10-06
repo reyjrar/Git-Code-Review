@@ -47,6 +47,7 @@ use Sub::Exporter -setup => {
         gcr_audit_commit
         gcr_audit_files
         gcr_audit_record
+        gcr_get_states
         gcr_state_color
         gcr_lookup_profile
     )],
@@ -598,6 +599,17 @@ sub gcr_change_profile {
 
     $commit->{profile} = $profile;
     $commit->{current_path} = $target;
+}
+
+
+=func gcr_get_states()
+
+Get the valid states
+
+=cut
+
+sub gcr_get_states {
+    return keys %STATE;
 }
 
 
