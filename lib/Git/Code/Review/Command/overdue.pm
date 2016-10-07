@@ -1,16 +1,19 @@
-# ABSTRACT: Report overdue commits
+# ABSTRACT: Report overdue commits.
 package Git::Code::Review::Command::overdue;
 use strict;
 use warnings;
 
-use CLI::Helpers qw(:all);
+use CLI::Helpers qw(
+    output
+    verbose
+);
 use File::Basename;
 use File::Spec;
 use Config::GitLike;
+use Git::Code::Review -command;
+use Git::Code::Review::Notify qw(notify);
 use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review::Utilities::Date qw(days_age load_special_days special_age weekdays_age);
-use Git::Code::Review::Notify qw(notify);
-use Git::Code::Review -command;
 use POSIX qw(strftime);
 use Text::Wrap qw(fill);
 use Time::Local;
@@ -28,22 +31,48 @@ sub opt_spec {
 
 sub description {
     my $DESC = <<"    EOH";
+    SYNOPSIS
 
-    Give a break down of the commits that are older than a certain age and unactioned.
+        git-code-review overdue [options]
+
+    DESCRIPTION
+
+        Give a break down of the commits that are older than a certain age and unactioned.
+
+    EXAMPLES
+
+        git-code-review overdue --all
+
+        git-code-review overdue --all --weekdays
+
+        git-code-review overdue --all --weekdays --age 2
+
+        git-code-review overdue --all --workdays
+
+        git-code-review overdue --profile team_awesome --workdays --age 5
+
+        git-code-review overdue --profile team_awesome --workdays --age 5 --critical
+
+    OPTIONS
+
+            --profile profile   Show information for specified profile. Also see --all.
+            --notify        Send notifications as specified in the configuration.
     EOH
     $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
 }
 
+
 sub execute {
     my($cmd,$opt,$args) = @_;
-
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+    die "Too many arguments: " . join( ' ', @$args ) if scalar @$args > 0;
     die "You can use weekdays or workdays, but not both!" if $opt->{weekdays} && $opt->{workdays};
-    gcr_reset();
 
     my $profile = gcr_profile();
+    my %cfg = gcr_config();
     my $audit   = gcr_repo();
+    gcr_reset();
 
     my ($days_str, $days_old) = $opt->{weekdays} ? ( 'weekdays', \&weekdays_age ) : ( 'days', \&days_age );
     if ( $opt->{workdays} ) {
@@ -62,8 +91,8 @@ sub execute {
 
     # Look for commits that aren't approved and older than X days
     my @overdue = sort { $a->{select_date} cmp $b->{select_date} }
-                    grep { $days_old->($_->{select_date}) >= $opt->{age} }
-                    map { $_=gcr_commit_info(basename $_) }
+                    grep { ( $_->{ age } = $days_old->( $_->{ select_date } ) ) >= $opt->{age} }
+                    map { scalar gcr_commit_info( basename $_ ) }
                     grep !/Approved/, $audit->run(@ls);
 
     if(@overdue) {
@@ -176,6 +205,7 @@ sub execute {
                 profiles => \%profiles,
                 concerns => \%concerns,
                 contacts => \%contacts,
+                age_type => $days_str,
             });
         } else {
             my $p = $opt->{all} ? 'ALL' : $profile;
@@ -192,7 +222,6 @@ sub execute {
             $p
         );
     }
-
 }
 
 1;
