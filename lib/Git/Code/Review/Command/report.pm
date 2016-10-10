@@ -1,68 +1,93 @@
-# ABSTRACT: Generate an Audit Report
+# ABSTRACT: Generate an audit report and optionally update Jira tickets.
 package Git::Code::Review::Command::report;
 use strict;
 use warnings;
 
-use CLI::Helpers qw(:all);
+use CLI::Helpers qw(
+    debug
+    output
+    verbose
+);
 use File::Basename;
 use File::Spec;
+use Git::Code::Review -command;
 use Git::Code::Review::Notify;
 use Git::Code::Review::Utilities qw(:all);
-use Git::Code::Review -command;
+use Git::Code::Review::Utilities::Date qw(
+    is_valid_yyyy_mm_dd
+    start_of_month
+);
 use POSIX qw(strftime);
-use Time::Local qw(timelocal);
 use YAML;
 
+
+my $NOW = strftime('%F', localtime);
 my $_RESET=0;
 END {
     # Make sure we reset
     gcr_reset() if $_RESET;
 }
 
-my $NOW = strftime('%F', localtime);
+
 sub opt_spec {
     return (
-        ['all',     "Ignore profile settings, generate report for all profiles." ],
-        ['since:s', "Date to start history on, default is full history" ],
-        ['until:s', "Status of the repository at this date, default today", {default => $NOW}],
-        ['update',  "Check the status of commits as of today, to update old JIRA tickets."],
+        ['all',         "Ignore profile settings, generate report for all profiles." ],
+        ['since|s=s',   "Date (YYYY-MM-DD) to start history on, default is full history" ],
+        ['until|u=s',   "Status of the repository at this date (YYYY-MM-DD), default today", {default => $NOW}],
+        ['update',      "Check the status of commits as of today, to update old JIRA tickets."],
     );
 }
 
 sub description {
     my $DESC = <<"    EOH";
+    SYNOPSIS
 
-    Generate a report of the audit.
+        git-code-review report [options]
+
+    DESCRIPTION
+
+        Generate a report of the audit for a given period and optionally update Jira tickets.
+
+    EXAMPLES
+
+        git-code-review report
+
+        git-code-review report --profile team_awesome --since 2015-01-01
+
+        git-code-review report --profile team_awesome --since 2015-01-01 --until 2015-12-31
+
+        git-code-review report --all
+
+        git-code-review report --all -s 2015-01-01 -u 2015-12-31
+
+        git-code-review report --all --update
+
+    OPTIONS
+
+            --profile profile   Show information for specified profile. Also see --all.
     EOH
     $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
 }
 
+
 sub execute {
     my($cmd,$opt,$args) = @_;
-
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
-    gcr_reset();
+    die "Too many arguments: " . join( ' ', @$args ) if scalar @$args > 0;
+    die "Invalid --since date, expected date in YYYY-MM-DD format" if $opt->{ since } && ! is_valid_yyyy_mm_dd( $opt->{ since } );
+    die "Invalid --until date, expected date in YYYY-MM-DD format" if $opt->{ until } && ! is_valid_yyyy_mm_dd( $opt->{ until } );
 
-    my $audit   = gcr_repo();
     my $profile = gcr_profile();
+    my $audit   = gcr_repo();
+    gcr_reset();
 
     # Handle Profile Specific Files
     my @ls = ('ls-files');
     push @ls, $profile unless $opt->{all};
 
     # Start of last month
-    my @parts = qw(year month day);
-    my %d = map { shift @parts => $_ } split /-/, $opt->{until};
-    $d{month} -= 2;   # Adjust the Month for 0..11, and once more for last month
-
-    # Last year, reset to december last year
-    if($d{month} < 0) {
-        $d{month} = 11;
-        $d{year}--;
-    }
-    my $epoch_historic = timelocal(0,0,0,1,@d{qw(month year)});
-    my $last_month = strftime('%F', localtime($epoch_historic));
+    my $last_month = start_of_month( $opt->{ until }, -1 );
     debug({color=>'magenta'}, "MONTH DETERMINED: $last_month");
 
     my @commits  = ();

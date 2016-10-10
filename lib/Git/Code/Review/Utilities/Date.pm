@@ -3,21 +3,44 @@ package Git::Code::Review::Utilities::Date;
 use strict;
 use warnings;
 
-use Time::Local;
+use Time::Local qw(
+    timegm
+    timelocal
+);
 
 our $VERSION = 0.01;
 use Exporter 'import';
 our @EXPORT_OK = qw(
     days_age
+    is_valid_yyyy_mm_dd
     load_special_days
     reset_date_caches
     special_age
     special_days
+    start_of_month
     weekends
     weekdays_age
     yyyy_mm_dd_to_gmepoch
 );
 our %EXPORT_TAGS = ( all => \@EXPORT_OK );
+
+
+# Checks if the date is in yyyy-mm-dd format. Even with a valid format, the date itself may be invalid.
+sub is_valid_yyyy_mm_dd {
+    my ($date) = @_;
+    return $date =~ m/^\d{4}-\d{2}-\d{2}$/;
+}
+
+
+# Converts a date in yyyy-mm-dd format to the start of the month, optionally some months in the past or the future
+sub start_of_month {
+    my ($date_yyyy_mm_dd, $month_offset) = @_;
+    $month_offset ||= 0;
+    my @d = split /-/, $date_yyyy_mm_dd;
+    my $months = ( $d[ 0 ] * 12 ) + $d[ 1 ] - 1 + $month_offset;    # ( year * 12 ) + month - 1 + month_offset
+    return sprintf( "%04d-%02d-01", int( $months / 12 ), 1 + ( $months % 12 ) );
+}
+
 
 # Converts a date in yyyy-mm-dd format to an epoch
 sub yyyy_mm_dd_to_gmepoch {
@@ -29,6 +52,7 @@ sub yyyy_mm_dd_to_gmepoch {
     $parts[ 1 ]--;
     return timegm( 0, 0, 0, @parts );
 }
+
 
 my $TODAY;
 my %_Ages = ();
@@ -63,7 +87,7 @@ sub weekdays_age {
 
     my $epoch = yyyy_mm_dd_to_gmepoch( $date );
     my $age = days_age( $date );
-    return $_Weekday_Ages{ $date } = $age - weekends( ( gmtime( $epoch ) )[ 6 ], $age );
+    return $_Weekday_Ages{ $date } = $age - weekends( ( localtime( $epoch ) )[ 6 ], $age );
 }
 
 my @_Special_Days = ();
