@@ -1,18 +1,23 @@
-# ABSTRACT: Quick overview of the Audit Directory
+# ABSTRACT: List commits available in the audit.
 package Git::Code::Review::Command::list;
 use strict;
 use warnings;
 
-use CLI::Helpers qw(:all);
+use CLI::Helpers qw(
+    debug
+    debug_var
+    output
+);
 use File::Basename;
 use File::Spec;
-use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
+use Git::Code::Review::Utilities qw(:all);
 use YAML;
+
 
 sub opt_spec {
     return (
-        ['state=s',    "CSV of states to show."],
+        ['state=s@',   sprintf( "Commit audit states to list. Multiple --state options can be given or even comma separated. Available states are: %s.", join( ', ', sort( gcr_get_states() ) ) )],
         ['all',        "Don't filter by profile."],
         ['since|s:s',  "Commit start date, none if not specified", {default => "0000-00-00"}],
         ['until|u:s',  "Commit end date, none if not specified",   {default => "9999-99-99"}],
@@ -21,23 +26,53 @@ sub opt_spec {
 
 sub description {
     my $DESC = <<"    EOH";
+    SYNOPSIS
 
-    This command can be used to view the status of the audit.
+        git-code-review list [options]
+
+    DESCRIPTION
+
+        This command can be used to view the status of all commits in the audit that match the specified criteria of profile, period and state.
+
+    EXAMPLES
+
+        git-code-review list
+
+        git-code-review list --all
+
+        git-code-review list --all --state concerns
+
+        git-code-review list --all --since 2016-06-01 --until 2016-06-30
+
+        git-code-review list --profile team_awesome --since 2015-01-01 --until 2015-12-31
+
+    OPTIONS
+
+            --profile profile   Show information for specified profile. Also see --all.
     EOH
     $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
 }
 
+
 sub execute {
     my($cmd,$opt,$args) = @_;
-
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+    die "Too many arguments: " . join( ' ', @$args ) if scalar @$args > 0;
 
-    my %SHOW = exists $opt->{state} ? map { $_ => 1 } split /,|\s+/, $opt->{state} : ();
-    my $audit = gcr_repo();
+    my %show = exists $opt->{state} ? map { $_ => 1 } split /,|\s+/, join( ',', @{ $opt->{state} } ) : ();
+    if ( scalar %show ) {
+        # validate the supplied states
+        my %available_states = map { $_ => 1 } gcr_get_states();
+        my @invalid_states = grep { ! exists $available_states{ $_ } } keys %show;
+        die sprintf("Invalid state/s '%s'. Valid states can be a subset of '%s'.", join(', ', @invalid_states), join( ', ', sort keys %available_states) ) if scalar @invalid_states;
+    }
+
     my $profile = gcr_profile();
+    my $audit = gcr_repo();
     gcr_reset();
 
+    my $header =  join( "\t", 'Profile', 'State', 'Authored:yyyy-mm-dd', 'Selected:yyyy-mm-dd', 'Commit hash                             ', 'Author', '(comments)' );
     my @list = $audit->run(qw(ls-files -- **.patch));
     if( @list ) {
         my %states = ();
@@ -45,7 +80,7 @@ sub execute {
         my @commits = grep { $_->{select_date} ge $opt->{since} && $_->{select_date} le $opt->{until} }
                         map { debug("getting info $_"); $_=gcr_commit_info( basename $_ ) } @list;
         output({color=>'cyan'}, sprintf "-[ Commits in the Audit %s:: %s ]-",
-            scalar(keys %SHOW) ? '(' . join(',', sort keys %SHOW) . ') ' : '',
+            scalar(keys %show) ? '(' . join(',', sort keys %show) . ') ' : '',
             gcr_origin('audit')
         );
         # Assemble Comments
@@ -69,7 +104,12 @@ sub execute {
             $profiles{$commit->{profile}}++;
 
             # State filter
-            next if keys %SHOW && !exists $SHOW{$commit->{state}};
+            next if keys %show && !exists $show{$commit->{state}};
+
+            if ( $header ) {
+                output( {indent=>1,data=>1}, $header );
+                $header = undef;
+            }
 
             my $color = gcr_state_color($commit->{state});
             output({indent=>1,color=>$color,data=>1}, join("\t",
