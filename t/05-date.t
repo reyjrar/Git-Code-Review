@@ -20,6 +20,7 @@ use Git::Code::Review::Utilities::Date qw(
     reset_date_caches
     special_age
     special_days
+    start_of_month
     weekends
     weekdays_age
     yyyy_mm_dd_to_gmepoch
@@ -221,6 +222,38 @@ sub verify_special_age {
 }
 
 
+sub verify_start_of_month {
+    my $tests = [
+        [ "2016-10-10", -1, "2016-09-01"],
+        [ "2016-10-10", -2, "2016-08-01"],
+        [ "2016-10-10", -3, "2016-07-01"],
+        [ "2016-10-10", -4, "2016-06-01"],
+        [ "2016-10-10", -5, "2016-05-01"],
+        [ "2016-10-10", -6, "2016-04-01"],
+        [ "2016-10-10", -7, "2016-03-01"],
+        [ "2016-10-10", -8, "2016-02-01"],
+        [ "2016-10-10", -9, "2016-01-01"],
+        [ "2016-10-10", -10, "2015-12-01"],
+        [ "2016-10-10", -11, "2015-11-01"],
+        [ "2016-10-10", -12, "2015-10-01"],
+        [ "2016-10-10", -13, "2015-09-01"],
+        [ "2016-10-10", 0, "2016-10-01" ],
+        [ "2016-10-10", 1, "2016-11-01" ],
+        [ "2016-10-10", 2, "2016-12-01" ],
+        [ "2016-10-10", 3, "2017-01-01" ],
+        [ "2016-10-10", 12, "2017-10-01" ],
+        [ "2016-02-28", -1, "2016-01-01" ],
+        [ "2016-12-31", 1, "2017-01-01" ],
+    ];
+
+    for my $test ( @$tests ) {
+        my ($start_date, $months, $expected) = @$test;
+        my $result = start_of_month( $start_date, $months );
+        is( $result, $expected, sprintf( "start_of_month( $start_date, $months ) == $expected") );
+    }
+}
+
+
 verify_yyyy_mm_dd_to_gmepoch( 400 );
 verify_weekends( 400 );
 verify_age_dst();
@@ -228,6 +261,7 @@ verify_age( 400 );
 verify_weekdays_age( 400 );
 verify_special_days();
 verify_special_age( 400 );
+verify_start_of_month();
 done_testing();
 
 
