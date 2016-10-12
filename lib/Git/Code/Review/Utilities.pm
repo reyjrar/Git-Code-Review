@@ -36,6 +36,7 @@ use Sub::Exporter -setup => {
         gcr_open_editor
         gcr_view_commit
         gcr_view_commit_files
+        gcr_view_readme
         gcr_change_profile
         gcr_change_state
         gcr_not_resigned
@@ -190,7 +191,7 @@ sub gcr_config {
             $_config{$gitrc{$k}} = $v;
         }
 
-        foreach my $sub (qw(notification mailhandler)) {
+        foreach my $sub (qw(notification mailhandler review)) {
             my @files = (
                 File::Spec->catfile($AUDITDIR,'.code-review',"${sub}.config"),
                 File::Spec->catfile($AUDITDIR,qw(.code-review profiles),gcr_profile(exists => 0),"${sub}.config")
@@ -526,6 +527,48 @@ sub gcr_view_commit_files {
         output({color=>'yellow'}, "!! Selected file doesn't exist in the most recent checkout: $selection");
     }
     return;
+}
+
+
+=func gcr_global_readme()
+
+Get the global readme file.
+
+=cut
+sub gcr_global_readme {
+    return File::Spec->catfile( $AUDITDIR, '.code-review', 'README');
+}
+
+
+=func gcr_profile_readme()
+
+Get the readme file for a profile.
+
+=cut
+sub gcr_profile_readme {
+    return File::Spec->catfile( $AUDITDIR, qw( .code-review profiles ), gcr_profile( exists => 0 ), 'README' );
+}
+
+
+=func gcr_readme()
+
+Get the readme file for the current profile if it exists or a global one.
+
+=cut
+sub gcr_readme {
+    my $readme = gcr_profile_readme();
+    return $readme if -e $readme;
+    return gcr_global_readme(); # it is possible that the global README file may not exist
+}
+
+
+=func gcr_view_readme()
+
+View the README file for the current profile if it exists or the global README file.
+
+=cut
+sub gcr_view_readme {
+    gcr_open_editor( readonly => gcr_readme() );
 }
 
 
