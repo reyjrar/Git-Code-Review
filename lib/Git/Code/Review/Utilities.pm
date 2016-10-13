@@ -33,6 +33,7 @@ use Sub::Exporter -setup => {
         gcr_profile
         gcr_profiles
         gcr_valid_profile
+        gcr_load_profile
         gcr_open_editor
         gcr_view_commit
         gcr_view_commit_files
@@ -166,6 +167,41 @@ sub gcr_valid_profile {
 
     return exists $_profiles{$profile};
 }
+
+
+=func gcr_load_profile($profile_name)
+
+Returns selection config for the profile
+
+=cut
+sub gcr_load_profile {
+    my ($profile) = @_;
+    # Select everything if there's no profiles
+    my %profile = ();
+
+    # Selection Config for the Profile
+    my $select_file = File::Spec->catfile( $AUDITDIR, qw( .code-review profiles ), $profile, 'selection.yaml' );
+    if( -f $select_file ) {
+        my $data;
+        eval {
+            $data = YAML::LoadFile($select_file);
+        };
+        if( my $err = $@ ) {
+            output({stderr=>1,color=>'red'}, "Error loading profile YAML: $err");
+            exit 1;
+        }
+        else {
+           %profile = %{ $data };
+        }
+    }
+    elsif($profile eq 'default') {
+        %profile = ( path => [qw(**)], );
+    }
+    die "error loading selection criteria for $profile" unless scalar(keys %profile);
+
+    return wantarray ? %profile : \%profile;
+}
+
 
 =func gcr_config()
 
