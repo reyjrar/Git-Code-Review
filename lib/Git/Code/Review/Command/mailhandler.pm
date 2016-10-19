@@ -1,40 +1,74 @@
-# ABSTRACT: Manage replies to the code review mailbox
+# ABSTRACT: Manage replies to the code review mailbox.
 package Git::Code::Review::Command::mailhandler;
 use strict;
 use warnings;
 
-use CLI::Helpers qw(:all);
+use CLI::Helpers qw(
+    debug
+    debug_var
+    output
+    verbose
+);
 use Config::Auto;
 use DateTime::Format::Mail;
 use Email::Address;
 use Email::Simple;
 use Email::MIME;
 use File::Spec;
-use Git::Code::Review::Utilities qw(:all);
 use Git::Code::Review -command;
 use Git::Code::Review::Notify;
+use Git::Code::Review::Utilities qw(:all);
 use Mail::IMAPClient;
 use Mojo::DOM;
 use Text::Wrap qw(fill);
 use YAML;
 
-my %CONFIG = gcr_config();
-$CONFIG{mailhandler} ||= {};
+
+my %METRICS = ();
+my %CONFIG;
+sub _init {
+    return if scalar %CONFIG;
+    %CONFIG = gcr_config();
+    $CONFIG{ mailhandler } ||= {};
+}
+
 
 sub opt_spec {
+    _init();
+    my $mail_cfg = $CONFIG{ mailhandler };
     return (
-           ['server:s',           "IMAP Server",                      {default=>exists $CONFIG{mailhandler}->{'global.server'}  ? $CONFIG{mailhandler}->{'global.server'} : 'localhost' }],
-           ['port:i',             "IMAP Server Port",                 {default=>exists $CONFIG{mailhandler}->{'global.port'}    ? $CONFIG{mailhandler}->{'global.port'} : 993 }],
-           ['folder:s',           "IMAP Folder to scan",              {default=>exists $CONFIG{mailhandler}->{'global.folder'}  ? $CONFIG{mailhandler}->{'global.folder'} : 'INBOX' }],
-           ['ssl!',               "Use SSL, default yes",             {default=>1}],
-           ['credentials-file:s', "Location of the Credentials File", {default=>exists $CONFIG{mailhandler}->{'global.credentials-file'}  ? $CONFIG{mailhandler}->{'global.credentials-file'} : '/etc/code-review/mailhandler.config' }],
+        ['server:s',           "IMAP Server",                      {default=>exists $mail_cfg->{'global.server'}  ? $mail_cfg->{'global.server'} : 'localhost' }],
+        ['port:i',             "IMAP Server Port",                 {default=>exists $mail_cfg->{'global.port'}    ? $mail_cfg->{'global.port'} : 993 }],
+        ['folder:s',           "IMAP Folder to scan",              {default=>exists $mail_cfg->{'global.folder'}  ? $mail_cfg->{'global.folder'} : 'INBOX' }],
+        ['ssl!',               "Use SSL. Use --no-ssl to turn off ssl", {default=>exists $mail_cfg->{'global.ssl'}  ? $mail_cfg->{'global.ssl'} : 1 }],
+        ['credentials-file:s', "Location of the Credentials File", {default=>exists $mail_cfg->{'global.credentials-file'}  ? $mail_cfg->{'global.credentials-file'} : '/etc/code-review/mailhandler.config' }],
+        ['dry-run',             "Test connection, show all configuration variables and exit",],
     );
 }
 
 sub description {
     my $DESC = <<"    EOH";
+    SYNOPSIS
 
-    Display information about the Git::Code::Review objects.
+        git-code-review mailhandler [options]
+
+    DESCRIPTION
+
+        Manage replies to the code review mailbox.
+
+    EXAMPLES
+
+        git-code-review mailhandler
+
+        git-code-review mailhandler --dry-run
+
+        git-code-review mailhandler --dry-run --server mail.server.com --port 993 --credentials-file ~/mail.config
+
+        git-code-review mailhandler --server mail.server.com --port 993 --credentials-file ~/mail.config
+
+        git-code-review mailhandler --folder Replies
+
+    OPTIONS
     EOH
     $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
@@ -42,21 +76,24 @@ sub description {
 
 sub execute {
     my($cmd,$opt,$args) = @_;
-
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
-    die "No mailhandler.config found" unless keys %{ $CONFIG{mailhandler} };
+    die "Too many arguments: " . join( ' ', @$args ) if scalar @$args > 0;
+    _init();
+    $CONFIG{ mailhandler }{ 'global.auto-approve' } = 1 unless exists $CONFIG{ mailhandler }{ 'global.auto-approve' }; # not allowed to override via options
+    my $auto_approve = $CONFIG{ mailhandler }{ 'global.auto-approve' };
 
     debug({color=>'cyan'},"Git::Code::Review Mailhandler Config");
     debug_var($opt);
     debug({clear => 1}, "Defaults");
     debug(Dump $CONFIG{mailhandler});
 
-    my @missing=();
-    foreach my $required(qw(credentials_file server)) {
-        push @missing, $required unless exists $opt->{$required};
+    my @missing_opts = grep { ! exists $opt->{ $_ } } qw( credentials_file server );    # ensure required options are provided
+    if ( @missing_opts ) {
+        output( {color=>'red',stderr=>1}, sprintf "Missing required options: %s", join( ', ', map { s/\_/-/g; } @missing_opts ) );
+        exit 1;
     }
-    if(@missing) {
-        output({color=>'red',stderr=>1}, sprintf "Missing required options: %s", join(', ', map { s/\_/-/g; } @missing));
+    if ( ! -f $opt->{ credentials_file } ) {
+        output({color=>'red',stderr=>1}, sprintf "The credentials file %s does not exist. You can provide the right file with --credentials-file or configure it in global.credentials-file in mailhandler.config file", $opt->{ credentials_file } );
         exit 1;
     }
 
@@ -65,8 +102,8 @@ sub execute {
 
     # Try to grab the username/password
     my %mapping = (
-            username => [qw(user username)],
-            password => [qw(pass passwd password)],
+        username => [qw(user userid username)],
+        password => [qw(pass passwd password)],
     );
     my %credentials = ();
     foreach my $key (keys %mapping) {
@@ -80,6 +117,21 @@ sub execute {
             exit 1;
         }
     }
+
+    if ( $opt->{ dry_run } ) {
+        # show config details for connection test
+        output( 'Trying to connect to the mail server with the following settings.' );
+        output( join( ": ", @$_ ) ) for (
+            [ Server   => $opt->{ server } ],
+            [ Port     => $opt->{ port } ],
+            [ Ssl      => $opt->{ ssl } ],
+            [ credentials_file  => $opt->{ credentials_file } ],
+            [ User     => $credentials{ username } ],
+            [ Password => '********' ],
+            [ AutoApprove => ( $auto_approve ? '1' : '0' ) ],
+        );
+    }
+
     my $imap = Mail::IMAPClient->new(
         Server   => $opt->{server},
         Port     => $opt->{port},
@@ -87,7 +139,10 @@ sub execute {
         User     => $credentials{username},
         Password => $credentials{password},
     ) or die "Unable to connect to $opt->{server}: $@";
+    $METRICS{ connected } = 1;
     verbose({color=>'green'}, sprintf "Successfully connected to %s as %s.", $opt->{server}, $credentials{username});
+
+    return if $opt->{ dry_run }; # we were just testing the connection to the mail server
 
     my @folders = $imap->folders;
     debug({indent=>1}, "+ Folders discovered: " . join(', ', @folders));
@@ -95,7 +150,8 @@ sub execute {
     $imap->select($opt->{folder});
 
     my @unseen = $imap->unseen();
-    verbose({indent=>1}, sprintf "+ Found %d unread messages.", scalar(@unseen));
+    verbose({indent=>1}, sprintf "+ Found %d unread messages.", ( scalar @unseen ));
+    $METRICS{ emails } = scalar @unseen ;
 
     # Reset these all the time
     my @EnvRelative = qw(
@@ -188,6 +244,7 @@ sub execute {
                 reason  => 'Unable to figure out the commit object you are commenting on.',
                 message => \@message,
             });
+            $METRICS{ errors }{ no_commit }++;
 
             next;
         }
@@ -208,6 +265,7 @@ sub execute {
         if(!defined $commit) {
             $imap->deny_seeing($msg);
             output({color=>'red'}, "Unable to locate commit object $vars{commit}");
+            $METRICS{ errors }{ bad_commit }++;
             next;
         }
 
@@ -217,8 +275,9 @@ sub execute {
         pop @message while @message and $message[-1] =~ /^\s*$/;
         $vars{message} = fill("", "", @message);
 
-        if( exists $vars{fixed} ) {
+        if( $auto_approve && exists $vars{fixed} ) {
             debug({color=>'green'}, sprintf "FIXED: audit:%s by source:%s", $vars{commit}, $vars{fixed});
+            $METRICS{ fix }++;
             if( $commit->{state} eq 'approved' ) {
                 output({color=>'yellow',indent=>1}, "Commit $vars{commit} is already approved.");
                 next;
@@ -283,6 +342,7 @@ sub execute {
             }
         }
     }
+    debug_var( \%METRICS );
 }
 
 1;
