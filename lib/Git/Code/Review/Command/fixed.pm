@@ -1,21 +1,23 @@
-# ABSTRACT: Mark a commit previously concerned with approved
+# ABSTRACT: Mark a commit previously concerned as approved. Also available as fixed.
 package Git::Code::Review::Command::fixed;
 use strict;
 use warnings;
 
-use CLI::Helpers qw(:all);
-use Git::Code::Review::Utilities qw(:all);
+use CLI::Helpers qw(
+    debug
+    output
+    prompt
+);
 use Git::Code::Review -command;
+use Git::Code::Review::Utilities qw(:all);
 use POSIX qw(strftime);
 use YAML;
 
-# Globals for easy access
-my $AUDITDIR = gcr_dir();
-my %CFG = gcr_config();
 
 sub command_names {
     return qw(approve fixed);
 }
+
 sub opt_spec {
     return (
         #    ['noop',       "Take no recorded actions."],
@@ -24,34 +26,56 @@ sub opt_spec {
 
 sub description {
     my $DESC = <<"    EOH";
+    SYNOPSIS
 
-    This command allows reviewers to mark a commit previously flagged as a concern
-    to the approved status.
+        git-code-review approve [options] <commit hash>
 
-    Aliased as: approve, fixed
+    DESCRIPTION
 
-    All necessary information will be prompted from the user.
+        This command allows reviewers to mark a commit previously flagged as a concern to the approved status. All necessary information will be prompted from the user.
+
+        Aliased as: approve, fixed
+
+    EXAMPLES
+
+        git-code-review approve 44d3b68e
+
     EOH
     $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
 }
 
+
 sub execute {
     my ($cmd,$opt,$args) = @_;
-    my ($match) = @$args;
-
     die "Not initialized, run git-code-review init!" unless gcr_is_initialized();
+    my $match = shift @$args;
+    die "Too many arguments: " . join( ' ', @$args ) if scalar @$args > 0;
+    if ( !defined $match ) {
+        output({color=>'red'}, "Please specify a commit hash from the source repository in concerns state to approve.");
+        exit 1;
+    } elsif ( $match !~ /^[a-z0-9]{5,40}$/ ) {
+        output({color=>'red'}, "Please specify a commit hash from the source repository in concerns state to approve. $match does not seem like a commit hash.");
+        exit 1;
+    }
 
     my $audit = gcr_repo();
     gcr_reset();
 
-    if( !defined $match ) {
-        output({color=>'red'}, "Please specify a sha1 or .patch file.");
-        exit 1;
-    }
     my @list = grep { /$match/ } $audit->run('ls-files',"*Concerns*");
     if( @list == 0 ) {
-        output({color=>"red"}, "Unable to locate any flagged commits in matching '$match'");
+        output({color=>"red"}, "Unable to locate any commits in concerns state matching '$match'.");
+        my @commmits = $audit->run('ls-files', "*$match*.patch");
+        die "No valid commits were found matching $match either." unless scalar @commmits;
+        if ( scalar @commmits == 1 ) {
+            my $commit = gcr_commit_info( $commmits[ 0 ] );
+            if ( $commit->{state} eq 'approved' ) {
+                output( "Commit is already approved." );
+            } else {
+                output( sprintf "The commit is in %s state.", $commit->{state} );
+            }
+        }
+        output( "If the commit is not be in concerns state, you can use the review command to review and approve it" );
         exit 0;
     }
     my $pick = $list[0];
