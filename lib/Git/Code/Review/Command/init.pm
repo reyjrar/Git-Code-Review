@@ -1,15 +1,18 @@
-# ABSTRACT: Initialization hooks for git-code-review commands
+# ABSTRACT: Initialize a git-code-review audit repository.
 package Git::Code::Review::Command::init;
 use strict;
 use warnings;
 
-use CLI::Helpers qw(:all);
+use CLI::Helpers qw(
+    confirm
+    debug
+    output
+    prompt
+);
 use Git::Code::Review -command;
 use Git::Code::Review::Utilities qw(:all);
 use YAML;
 
-my %CFG = gcr_config();
-my $AUDITDIR = gcr_dir();
 
 sub opt_spec {
     return (
@@ -20,11 +23,16 @@ sub opt_spec {
 
 sub description {
     my $DESC = <<"    EOH";
+    SYNOPSIS
 
-    This command is used to initialize an audit repository against a source code
-    repository living elsewhere.  It uses submodules to achieve this.
+        git-code-review init [options]
 
-    Usage:
+    DESCRIPTION
+
+        This command is used to initialize an audit repository against a source code
+        repository living elsewhere.  It uses submodules to achieve this.
+
+    USAGE
 
         # Create a new audit repository
         mkdir /audits/user-repo.git
@@ -38,13 +46,22 @@ sub description {
         # Initialize the code review
         git-code-review init --repo https://github.com/user/repo.git --branch master
 
+    EXAMPLES
+
+        git-code-review init
+
+        git-code-review init --repo <source code repo> --branch <branch name>
+
+    OPTIONS
     EOH
     $DESC =~ s/^[ ]{4}//mg;
     return $DESC;
 }
 
+
 sub execute {
     my ($cmd,$opt,$args) = @_;
+    die "Too many arguments: " . join( ' ', @$args ) if scalar @$args > 0;
 
     # Pull, reset onto origin:master
     gcr_reset();
@@ -105,7 +122,9 @@ sub execute {
     # Set our config directory for our artifacts;
     gcr_mkdir('.code-review');
 
-    my $readme = File::Spec->catfile($AUDITDIR,'.code-review','README');
+    my %cfg = gcr_config();
+    my $auditdir = gcr_dir();
+    my $readme = File::Spec->catfile($auditdir,'.code-review','README');
     if( !-e $readme ) {
         open(my $fh, '>', $readme) or die "cannot create file: $readme";
         print $fh "This directory will be used to store templates for emails.\n";
@@ -115,7 +134,7 @@ sub execute {
 
     my %details = (
         state       => 'init',
-        reviewer    => $CFG{user},
+        reviewer    => $cfg{user},
         source_repo => $repo,
         branch      => $branch,
         audit_repo  => gcr_origin('audit'),
