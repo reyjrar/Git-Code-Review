@@ -31,7 +31,6 @@ use Sub::Exporter -setup => {
 };
 
 # Global Options
-my $PROFILE = gcr_profile();
 our $_OPTIONS_PARSED;
 my %_OPTIONS=();
 if( !$_OPTIONS_PARSED ) {
@@ -41,17 +40,27 @@ if( !$_OPTIONS_PARSED ) {
 }
 notify_enabled() if $_OPTIONS{notify} && $_OPTIONS{notify};
 
-# Configure the Templates
-my @TEMPLATE_DIR = ( gcr_mkdir('.code-review','templates') );
-my $PROFILE_DIR = File::Spec->catdir(gcr_dir(), qw(.code-review profiles),$PROFILE,'templates');
-unshift @TEMPLATE_DIR, $PROFILE_DIR if -d $PROFILE_DIR;
-$Template::Stash::HASH_OPS->{nsort_by_value} = sub {
-    my ($hash) = @_;
-    return sort { $hash->{$a} <=> $hash->{$b} } keys %{ $hash };
-};
-my $TEMPLATE = Template->new({
-    INCLUDE_PATH => \@TEMPLATE_DIR,
-});
+# declare globals that will be populated
+my $PROFILE;
+my @TEMPLATE_DIR;
+my $PROFILE_DIR;
+my $TEMPLATE;
+
+sub _init {
+    return if $PROFILE;
+    $PROFILE = gcr_profile();
+    # Configure the Templates
+    @TEMPLATE_DIR = ( gcr_mkdir('.code-review','templates') );
+    $PROFILE_DIR = File::Spec->catdir(gcr_dir(), qw(.code-review profiles),$PROFILE,'templates');
+    unshift @TEMPLATE_DIR, $PROFILE_DIR if -d $PROFILE_DIR;
+    $Template::Stash::HASH_OPS->{nsort_by_value} = sub {
+        my ($hash) = @_;
+        return sort { $hash->{$a} <=> $hash->{$b} } keys %{ $hash };
+    };
+    $TEMPLATE = Template->new({
+        INCLUDE_PATH => \@TEMPLATE_DIR,
+    });
+}
 
 # Do we enable remote notification?
 sub notify_enabled { $ENV{GCR_NOTIFY_ENABLED} = 1 }
@@ -59,6 +68,7 @@ sub notify_enabled { $ENV{GCR_NOTIFY_ENABLED} = 1 }
 sub notify_config {
     my $section = shift @_;
     my %local = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_;
+    _init();
     my %global = gcr_config();
 
     # Handle Setup
@@ -82,6 +92,7 @@ sub notify_config {
 sub notify {
     shift @_ if ref $_[0];
     my ($name,$opts) = @_;
+    _init();
     my %config = gcr_config();
 
     debug({color=>'magenta'}, "called Git::Code::Review::Notify::notify");
@@ -330,14 +341,18 @@ my %_DEFAULTS = (
         [% FOREACH profile IN profiles.keys.sort -%]
         [% NEXT IF !profiles.$profile.exists('total') -%]
         [% NEXT IF profiles.$profile.total <= 0 -%]
+        [% IF exclusions.exists(profile) -%]
+        [% profile %]: [% profiles.$profile.total %] *Excluded*
+        [% ELSE -%]
         [% profile %]: [% profiles.$profile.total %] - [% contacts.$profile.join(', ') %]
         [% FOREACH date IN profiles.$profile.keys.sort -%]
             [%- NEXT IF date == "total" -%]
-            [% date %]: [% profiles.$profile.$date.size %]
+            [% date %]: [% profiles.$profile.$date.size %] commits [% profiles.$profile.$date.first.age %] [% age_type %] old
             [% FOREACH commit IN profiles.$profile.$date -%]
-               - [% commit.sha1 %]
+               - [% commit.sha1 %] ([% commit.state %])
             [% END -%]
         [% END %]
+        [% END -%]
         [% END -%]
 
         [% IF concerns.keys.size > 0 -%]
