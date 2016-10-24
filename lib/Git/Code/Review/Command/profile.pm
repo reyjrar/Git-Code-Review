@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use CLI::Helpers qw(
+    confirm
     debug
     output
     prompt
@@ -101,6 +102,8 @@ sub execute {
     my %files = (
         'selection.yaml'      => 'Selection Criteria',
         'notification.config' => 'Notification Configuration',
+        'review.config'       => 'Review Configuration',
+        'README'              => 'Purpose, guidelines and other information',
     );
 
     my $profile = undef;
@@ -115,7 +118,7 @@ sub execute {
             my $file = prompt("Which file would you like to edit?", menu => \%files);
 
             # Configure the default if not there
-            my $filename = _default_file($profile,$file);
+            my $filename = _default_file($profile,$file,\%cfg);
             unless(defined $filename && -f $filename) {
                 output({stderr=>1,color=>"red"}, "Invalid config file, this shouldn't happen. ($filename)");
                 exit 1;
@@ -149,20 +152,41 @@ sub execute {
     # Edit files in the list.
     foreach my $filename (@files_to_edit) {
         gcr_open_editor(modify => $filename);
-        $audit->run( add => $filename );
     }
-    $audit->run( commit => '-m',
-        join("\n", $message,
-            Dump({
-                reviewer => $cfg{user},
-                state    => "profile_$action",
-                profile  => $profile,
-                files    => \@files_to_edit,
-                skip     => 'true',
-            }),
-        )
-    );
-    gcr_push();
+
+    if ( scalar @files_to_edit ) {
+        if ( confirm( "Are you sure you want to make this change?" ) ) {
+            for my $filename (@files_to_edit) {
+                $audit->run( add => $filename );
+            }
+            $audit->run( commit => '-m',
+                join("\n", $message,
+                    Dump({
+                        reviewer => $cfg{user},
+                        state    => "profile_$action",
+                        profile  => $profile,
+                        files    => \@files_to_edit,
+                        skip     => 'true',
+                    }),
+                )
+            );
+            gcr_push();
+        } else {
+            # remove files
+            for my $filename (@files_to_edit) {
+                my @dirty = $audit->run( qw{ status --porcelain --ignore-submodules=all -- }, $filename );
+                if ( my $status = shift @dirty ) {
+                    if ( substr( $status, 0, 2 ) eq '??' ) {
+                        # untracked file - delete it
+                        unlink $filename or warn output({stderr=>1,color=>"red"}, "Could not delete $filename: $!");
+                    } else {
+                        # check out the old version
+                        $audit->run( checkout => $filename );
+                    }
+                }
+            }
+        }
+    }
 }
 
 sub _default_file {
@@ -187,6 +211,21 @@ sub _default_file {
             '',
             ';[template "select"]',
             ";  to = $cfg->{user}",
+        ],
+        'review.config' => [
+            ';[labels.approve]',
+            ';  cosmetic    = "Cosmetic change only, no functional difference."',
+            ';  correct     = "Calculations are all accurate."',
+            ';  outofbounds = "Changes are not in the bounds for the audit."',
+            ';  other       = "Other (requires explanation)"',
+            '',
+            ';[labels.concerns]',
+            ';  incorrect = "Calculations are incorrect."',
+            ';  unclear = "Code is not clear, requires more information from the author."',
+            ';  other = "Other"',
+        ],
+        'README' => [
+            "README with the purpose, guidelines and other information for profile $profile",
         ],
     );
 
