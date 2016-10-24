@@ -34,6 +34,7 @@ directory as your Perl executable.
 The utility ships with documentation.
 
     git-code-review help
+    git-code-review tutorial
 
 And each command has a basic overview of it's own options and uses.
 
