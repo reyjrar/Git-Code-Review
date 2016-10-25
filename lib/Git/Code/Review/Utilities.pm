@@ -1005,28 +1005,42 @@ sub _get_commit_date {
     return $ISO;
 }
 
-=func _get_commit_date($path)
+=func _get_commit_select_date($path)
 
-Figure out the commit date.
+Figure out the commit selection date.
 
 =cut
 my %_selections = ();
+my $_selections_cached = 0;
 sub _get_commit_select_date {
     my ($sha1) = @_;
+    return $_selections{ $sha1 } if exists $_selections{ $sha1 };
 
     # Better cache this once per run
-    if(!keys %_selections) {
-        my $audit = gcr_repo();
-        my @log_options = qw(--reverse -F --grep);
-        push @log_options, "state: select";
+    my $audit = gcr_repo();
+    if( ! $_selections_cached ) {
+        if(scalar keys %_selections <= 1 ) {
+            # does not cache all commits, just tries to resolve a single one
+            my @log_options = ( qw( --reverse -n 1 -F --grep ), "state: select", '--', sprintf "*/%s**", $sha1 );
+            my $logs = $audit->log( @log_options );
+            if ( my $log = $logs->next ) {
+                my @commits = map { _get_sha1( basename( $_ ) ) } grep { /\.patch$/ } $audit->run( qw( diff-tree --no-commit-id --name-only -r ), $log->commit );
+                return $_selections{$sha1} = strftime( '%F', localtime( $log->author_localtime ) ) if grep { $_ eq $sha1 } @commits;
+            }
+            return $_selections{$sha1} = '1970-01-01';
+        } else {
+            $_selections_cached++;
+            my @log_options = qw(--reverse -F --grep);
+            push @log_options, "state: select";
 
-        my $logs = $audit->log(@log_options);
-        while(my $log = $logs->next) {
-            my $date = strftime( '%F', localtime($log->author_localtime));
-            my @commits = map { _get_sha1(basename($_)) } grep { /\.patch$/ } $audit->run(qw(diff-tree --no-commit-id --name-only -r), $log->commit);
-            foreach my $commit (@commits) {
-                next if exists $_selections{$commit};
-                $_selections{$commit} = $date;
+            my $logs = $audit->log(@log_options);
+            while(my $log = $logs->next) {
+                my $date = strftime( '%F', localtime($log->author_localtime));
+                my @commits = map { _get_sha1(basename($_)) } grep { /\.patch$/ } $audit->run(qw(diff-tree --no-commit-id --name-only -r), $log->commit);
+                foreach my $commit (@commits) {
+                    next if exists $_selections{$commit};
+                    $_selections{$commit} = $date;
+                }
             }
         }
     }
