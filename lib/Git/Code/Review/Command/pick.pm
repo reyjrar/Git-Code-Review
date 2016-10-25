@@ -169,6 +169,7 @@ sub execute {
         # Generate an ordered picklist w/o my commits and w/o my resignations
         my @picklist = sort { $a->{date} cmp $b->{date} }
                        grep { $_->{date} ge $opt->{since} && $_->{date} le $opt->{until} }
+                       grep { $_->{ profile } eq $profile }
                        map  { $_=gcr_commit_info($_) }
                        grep { /^$profile/ && gcr_not_resigned($_) && gcr_not_authored($_) }
                     $audit->run('ls-files', '*Review*');
