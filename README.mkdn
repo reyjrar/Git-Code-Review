@@ -4,7 +4,7 @@ Git::Code::Review - Tools for performing code review using Git as the backend
 
 # VERSION
 
-version 2.5
+version 2.6
 
 # SYNOPSIS
 
@@ -31,6 +31,7 @@ directory as your Perl executable.
 The utility ships with documentation.
 
     git-code-review help
+    git-code-review tutorial
 
 And each command has a basic overview of it's own options and uses.
 
