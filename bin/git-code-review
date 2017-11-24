@@ -1,6 +1,8 @@
-#!/usr/bin/env perl
+#!perl
 # PODNAME: git-code-review
 # ABSTRACT: Dispatches commands to the appropriate places
+use strict;
+use warnings;
 
 use Git::Code::Review;
 Git::Code::Review->run();
